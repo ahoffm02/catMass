@@ -4,6 +4,8 @@ Created on Sat Jul 10 22:18:20 2021
 
 @author: ashoff
 """
+
+
 import sys
 
 from PyQt5.QtCore import Qt
@@ -397,12 +399,12 @@ class XASCalcUI(QMainWindow):
         Sample_DR = self.textbox_dil03.text()
         Diluent_DR = self.textbox_dil04.text()
         
-        Result = fct.XASStoichCalc(Sample, Diluent, Sample_DR, Diluent_DR)
-        if "ERROR" in Result:
+        Error_message, Result = fct.XASStoichCalc(Sample, Diluent, Sample_DR, Diluent_DR)
+        if "ERROR" in Error_message:
             self.textbox_dil05.setText(Result)
         else:
             self.textbox1.setText(Result)
-            self.textbox_dil05.setText('')
+            self.textbox_dil05.setText(Error_message)
 
     
     def calculateResult(self):
