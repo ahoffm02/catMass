@@ -28,7 +28,7 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Py Qt package for calculating the proper loading of samples for XAS measuremnts",
+    description="Py Qt package for calculating the proper loading of samples for XAS measurements",
     entry_points={
         'console_scripts': [
             'catmass=catmass.cli:main',
