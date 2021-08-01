@@ -43,7 +43,7 @@ class XASCalcUI(QMainWindow):
         '''View Initializer'''
         super().__init__()
         ''' Main Window Properties'''
-        self.title = 'XAS Sample Mass Calculator'
+        self.title = 'CatMass - XAS Sample Mass Calculator'
         self.left = 100
         self.top = 100
         self.width = 640
@@ -181,7 +181,7 @@ class XASCalcUI(QMainWindow):
         self.button_dil01.clicked.connect(self.clearDilutionInput)
         
         # Create Button to Calculate Diluted Sample Chemical Formula 
-        self.button_dil02 = QPushButton('Calculate Diluted Sample Chemical Firmula')
+        self.button_dil02 = QPushButton('Calculate Diluted Sample Chemical Formula')
         DilutionLayout.addWidget(self.button_dil02, 4, 1, 1, 2)
         self.generalLayout.addLayout(DilutionLayout)
         self.button_dil02.clicked.connect(self.calculateSampleComp)
@@ -393,7 +393,7 @@ class XASCalcUI(QMainWindow):
         
         
     def calculateSampleComp(self):
-        """Evaluate expressions."""
+        """Evaluate expressions"""
         Sample = self.textbox_dil01.text()
         Diluent = self.textbox_dil02.text()
         Sample_DR = self.textbox_dil03.text()
@@ -508,8 +508,8 @@ class MyTableWidget(QWidget):
         self.tabs.resize(300,200)
         
         # Add tabs
-        self.tabs.addTab(self.tab1,"x wt% Metal on Support ")
-        self.tabs.addTab(self.tab2,"Supported Complexs and Oxides")
+        self.tabs.addTab(self.tab1,"x wt% Metals on Support")
+        self.tabs.addTab(self.tab2,"Supported Metal Complexs")
         
         # Create first tab
         """Define Layout"""
@@ -524,15 +524,35 @@ class MyTableWidget(QWidget):
         self.tab1.setLayout(Tab1Layout)
                 
         # Create Label for Metal Site(s) Definition
-        self.label_tab1_02 = QLabel('Metal Site(s) and Loading [wt%]:')
+        self.label_tab1_02 = QLabel('Metal Site #1 [e.g. Pt, PtO2, Pt1Sn3]:')
         self.label_tab1_02.setAlignment(Qt.AlignRight)
         Tab1Layout.addWidget(self.label_tab1_02, 1, 0)
         self.tab1.setLayout(Tab1Layout)
         
+        self.label_tab1_03 = QLabel('Metal Site #1 Loading [wt%]:')
+        self.label_tab1_03.setAlignment(Qt.AlignRight)
+        Tab1Layout.addWidget(self.label_tab1_03, 2, 0)
+        self.tab1.setLayout(Tab1Layout)
+        
+        self.label_tab1_04 = QLabel('Metal Site #2 [e.g. Pt, PtO2, Pt1Sn3]:')
+        self.label_tab1_04.setAlignment(Qt.AlignRight)
+        Tab1Layout.addWidget(self.label_tab1_04, 3, 0)
+        self.tab1.setLayout(Tab1Layout)
+        
+        self.label_tab1_05 = QLabel('Metal Site #2 Loading [wt%]:')
+        self.label_tab1_05.setAlignment(Qt.AlignRight)
+        Tab1Layout.addWidget(self.label_tab1_05, 4, 0)
+        self.tab1.setLayout(Tab1Layout)
+        
         # Create Label for Notes
-        self.label_tab1_03 = QLabel('Note: for metallic sites only, no oxides or complexes')
-        self.label_tab1_03.setAlignment(Qt.AlignLeft)
-        Tab1Layout.addWidget(self.label_tab1_03, 7, 0, 1,2)
+        self.label_tab1_06 = QLabel('Note: wt% must reflect the entire metal site.')
+        self.label_tab1_06.setAlignment(Qt.AlignLeft)
+        Tab1Layout.addWidget(self.label_tab1_06, 7, 0, 1,2)
+        self.tab1.setLayout(Tab1Layout)
+        
+        self.label_tab1_07 = QLabel('Note: Metal Site 2 is an optional field.')
+        self.label_tab1_07.setAlignment(Qt.AlignLeft)
+        Tab1Layout.addWidget(self.label_tab1_07, 8, 0, 1,2)
         self.tab1.setLayout(Tab1Layout)
         
         
@@ -546,7 +566,7 @@ class MyTableWidget(QWidget):
         
         # Create Text Box for Metal Site 1 Formula Imput
         self.textbox_tab102 = QLineEdit()
-        self.textbox_tab102.setPlaceholderText('Metal Site 1 ')
+        self.textbox_tab102.setPlaceholderText('Metal Site 1 Formula')
         self.textbox_tab102.setFixedSize(150, 35)
         Tab1Layout.addWidget(self.textbox_tab102, 1, 1)
         self.tab1.setLayout(Tab1Layout)
@@ -560,7 +580,7 @@ class MyTableWidget(QWidget):
         
         # Create Text Box for Metal Site 2 Formula Input
         self.textbox_tab104 = QLineEdit()
-        self.textbox_tab104.setPlaceholderText('Metal Site 2 ')
+        self.textbox_tab104.setPlaceholderText('Metal Site 2 Formula')
         self.textbox_tab104.setFixedSize(150, 35)
         Tab1Layout.addWidget(self.textbox_tab104, 3, 1)
         self.tab1.setLayout(Tab1Layout)
