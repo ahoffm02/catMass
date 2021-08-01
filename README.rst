@@ -16,8 +16,9 @@ catMass
 
 
 
-Py Qt interface for calculating the proper sample loading for XAS measuremnts.
-GUI offers abiliyt to account fir diluents as well as complex sample inputs.
+Py Qt interface for calculating the proper sample loading for XAS measurements.
+GUI offers ability to account for diluents as well as complex sample inputs.
+
 
 
 * Free software: GNU General Public License v3
