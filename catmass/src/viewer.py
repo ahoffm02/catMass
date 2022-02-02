@@ -435,7 +435,7 @@ class XASCalcUI(QMainWindow):
             self.textbox_Xray_05.setText(Result)
         else:
             self.textbox5.setText('{0:0.2f}'.format(ms))
-            self.textbox6.setText('{0:0.2f}'.format(stp))
+            self.textbox6.setText('{0:0.4f}'.format(stp))
             self.textbox7.setText('{0:0.2f}'.format(ms*MF_Samp))
             self.textbox8.setText('{0:0.2f}'.format(ms*MF_Dil))
             self.textbox9.setText('{0:0.0f}'.format(Enot))
