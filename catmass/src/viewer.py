@@ -271,59 +271,63 @@ class XASCalcUI(QMainWindow):
         InputLayout.addWidget(self.label3, 3, 0)
         self.generalLayout.addLayout(InputLayout)
         
+        #create laebl for 45 option
+        
+        
         # Create Lable for Desired Absorption Length
         self.label4 = QLabel('Total Sample Absorption at E0 + 50 eV:')
         self.label4.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label4, 4, 0)
+        InputLayout.addWidget(self.label4, 5, 0)
         self.label4.setWordWrap(True)
-        self.generalLayout.addLayout(InputLayout)
-        
-        # Create Lable for Desired Area
-        self.label5 = QLabel('Sample Area Perpendicular to Beam [cm<sup>2</sup>]:')
-        self.label5.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label5, 9, 0)
-        self.label5.setWordWrap(True)
         self.generalLayout.addLayout(InputLayout)
         
         # Create Lable for Co-ACCESS default cell Area
         self.label6 = QLabel('Sample Area Perpendicular')
         self.label6.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label6, 5, 0)
+        InputLayout.addWidget(self.label6, 6, 0)
         self.generalLayout.addLayout(InputLayout)
         
         # Create Lable for Co-ACCESS default cell Area
         self.label7 = QLabel('to Beam of Co-ACCESS')
         self.label7.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label7, 6, 0)
+        InputLayout.addWidget(self.label7, 7, 0)
         self.generalLayout.addLayout(InputLayout)
         # Create Lable for Co-ACCESS default cell Area
         self.label8 = QLabel('Capillaries:')
         self.label8.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label8, 7, 0)
-        self.generalLayout.addLayout(InputLayout)
-        
-        # Create Lable for plot lower limit
-        self.label9 = QLabel('Lower Limit of μ Average Plot')
-        self.label9.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label9, 12, 0)
-        self.generalLayout.addLayout(InputLayout)
-        # Create Lable for plot upper limit
-        self.label10 = QLabel('Upper Limit of μ Average Plot')
-        self.label10.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label10, 13, 0)
+        InputLayout.addWidget(self.label8, 8, 0)
         self.generalLayout.addLayout(InputLayout)
         
         # Create Lable for bed legnth
         self.label11 = QLabel('Bed length [1 cm]')
         self.label11.setAlignment(Qt.AlignCenter)
-        InputLayout.addWidget(self.label11, 8, 0)
+        InputLayout.addWidget(self.label11, 9, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        # Create Lable for Desired Area
+        self.label5 = QLabel('Sample Area Perpendicular to Beam [cm<sup>2</sup>]:')
+        self.label5.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label5, 10, 0)
+        self.label5.setWordWrap(True)
         self.generalLayout.addLayout(InputLayout)
         
         
+        
+        # Create Lable for plot lower limit
+        self.label9 = QLabel('Lower Limit of μ Average Plot')
+        self.label9.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label9, 11, 0)
+        self.generalLayout.addLayout(InputLayout)
+        # Create Lable for plot upper limit
+        self.label10 = QLabel('Upper Limit of μ Average Plot')
+        self.label10.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label10, 12, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        
+        
+        
         """Input Fields"""
-        
-        
-        
         
         # Create Editable Textbox for Sample Stoichiometry
         self.textbox1 = QLineEdit()
@@ -350,38 +354,31 @@ class XASCalcUI(QMainWindow):
         self.combo.setFixedSize(150, 35)
         InputLayout.addWidget(self.combo, 3, 1)
         self.generalLayout.addLayout(InputLayout)
+        
+        #checkbox to show results with cell at 45 degrees
+        self.b2 = QCheckBox()
+        InputLayout.addWidget(self.b2, 4, 1)
+        #self.b1.setAlignment(Qt.AlignCenter)
+        self.b2.setText("Sample at 45°")
+        self.b2.toggled.connect(self.b1_function)
  
+    
         # Create Editable Textbox for Desired Absorption Length
         self.textbox3 = QLineEdit()
         self.textbox3.setPlaceholderText('Target Absorption Length')
         self.textbox3.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox3, 4, 1)
+        InputLayout.addWidget(self.textbox3, 5, 1)
         self.generalLayout.addLayout(InputLayout)
         self.textbox3.setText('2.5')
         
         
-        #checkbox to show plot
-        self.b1 = QCheckBox()
-        InputLayout.addWidget(self.b1, 11, 0)
-        #self.b1.setAlignment(Qt.AlignCenter)
-        self.b1.setText("Show Plot")
-        #checkbox to show results with cell at 45 degrees
-        self.b2 = QCheckBox()
-        InputLayout.addWidget(self.b2, 11, 1)
-        #self.b1.setAlignment(Qt.AlignCenter)
-        self.b2.setText("Sample at 45°")
-        self.b2.toggled.connect(self.b1_function)
-        
-        
-        
-        
         # Radio button for Capillaries
         self.radioButton1 = QRadioButton(self)
-        InputLayout.addWidget(self.radioButton1, 5, 1)
+        InputLayout.addWidget(self.radioButton1, 6, 1)
         self.radioButton2 = QRadioButton()
-        InputLayout.addWidget(self.radioButton2, 6, 1)
+        InputLayout.addWidget(self.radioButton2, 7, 1)
         self.radioButton3 = QRadioButton()
-        InputLayout.addWidget(self.radioButton3, 7, 1)
+        InputLayout.addWidget(self.radioButton3, 8, 1)
         #self.radioButton4 = QRadioButton()
         #InputLayout.addWidget(self.radioButton4, 5, 5)
         self.radioButton1.setText("3 mm Capillary")
@@ -390,6 +387,14 @@ class XASCalcUI(QMainWindow):
         self.radioButton1.toggled.connect(self.radioButton1_function) 
         self.radioButton2.toggled.connect(self.radioButton2_function) 
         self.radioButton3.toggled.connect(self.radioButton3_function)
+        
+        # Create Editable Textbox bed length
+        self.textbox13 = QLineEdit()
+        self.textbox13.setPlaceholderText('1')
+        self.textbox13.setFixedSize(150, 35)
+        InputLayout.addWidget(self.textbox13, 9, 1)
+        self.generalLayout.addLayout(InputLayout)
+        self.textbox13.setText('1')
      
        
             
@@ -397,7 +402,7 @@ class XASCalcUI(QMainWindow):
         self.textbox4 = QLineEdit()
         self.textbox4.setPlaceholderText('Sample Area')
         self.textbox4.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox4, 9, 1)
+        InputLayout.addWidget(self.textbox4, 10, 1)
         self.generalLayout.addLayout(InputLayout)
         
         
@@ -406,24 +411,22 @@ class XASCalcUI(QMainWindow):
         self.textbox11 = QLineEdit()
         self.textbox11.setPlaceholderText('-200')
         self.textbox11.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox11, 12, 1)
+        InputLayout.addWidget(self.textbox11, 11, 1)
         self.generalLayout.addLayout(InputLayout)
         self.textbox11.setText('-200')
         # Create Editable Textbox for Plot upper limit
         self.textbox12 = QLineEdit()
         self.textbox12.setPlaceholderText('1000')
         self.textbox12.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox12, 13, 1)
+        InputLayout.addWidget(self.textbox12, 12, 1)
         self.generalLayout.addLayout(InputLayout)
         self.textbox12.setText('1000')
         
-        # Create Editable Textbox bed length
-        self.textbox13 = QLineEdit()
-        self.textbox13.setPlaceholderText('1')
-        self.textbox13.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox13, 8, 1)
-        self.generalLayout.addLayout(InputLayout)
-        self.textbox13.setText('1')
+        #checkbox to show plot
+        self.b1 = QCheckBox()
+        InputLayout.addWidget(self.b1, 13, 1)
+        #self.b1.setAlignment(Qt.AlignCenter)
+        self.b1.setText("Show Plot")
         
 
         # Create Editable Textbox for Diagnostics
@@ -431,35 +434,39 @@ class XASCalcUI(QMainWindow):
         self.textbox_Xray_05.setPlaceholderText('Diagnostics')
         self.textbox_Xray_05.setAlignment(Qt.AlignCenter)
         #self.textbox5.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox_Xray_05, 14, 0, 1, 2)
+        InputLayout.addWidget(self.textbox_Xray_05, 15, 0, 1, 2)
         self.generalLayout.addLayout(InputLayout)
         
         '''Buttons'''
         #Create Reset Button to Clear X-ray Input Field
         self.button_Input01 = QPushButton('Reset')
-        InputLayout.addWidget(self.button_Input01, 10, 0)
+        InputLayout.addWidget(self.button_Input01, 14, 0)
         self.generalLayout.addLayout(InputLayout)
         self.button_Input01.clicked.connect(self.clearDisplay)
         #Create Button to Calcualte sample mass and step
         self.button_Input02 = QPushButton('Calculate Sample Mass')
-        InputLayout.addWidget(self.button_Input02 ,10, 1)
+        InputLayout.addWidget(self.button_Input02 ,14, 1)
         self.generalLayout.addLayout(InputLayout)
         self.button_Input02.clicked.connect(self.calculateResult)
         
         
     def radioButton1_function(self):
         if self.radioButton1.isChecked():
+            if self.textbox13.text() =='N/A':
+                self.textbox13.setText('1')
             crossarea = float(self.textbox13.text())*0.3
             self.textbox4.setText(str(crossarea))
 
     def radioButton2_function(self):
         if self.radioButton2.isChecked():
+            if self.textbox13.text() =='N/A':
+                self.textbox13.setText('1')
             crossarea = float(self.textbox13.text())*0.1
             self.textbox4.setText(str(crossarea))
 
     def radioButton3_function(self):
         if self.radioButton3.isChecked():
-            self.textbox13.setText('1')
+            self.textbox13.setText('N/A')
             self.textbox4.setText('0.38')
     def b1_function(self):
         import math
@@ -471,6 +478,9 @@ class XASCalcUI(QMainWindow):
             self.textbox6.setText('{0:0.2f}'.format(float(stp)/math.sqrt(2)))
             self.textbox3.setText('{0:0.2f}'.format(float(AL)/math.sqrt(2)))
             self.textbox4.setText('{0:0.2f}'.format(float(Area)*math.sqrt(2)))
+            self.label4.setText('Total Sample Absorption at E0 + 50 eV:')
+            self.label5.setText('Sample Area Perpendicular to Beam [cm<sup>2</sup>]:')
+            self.label7.setText('Estimated Edge Step:')
         else:
             stp = self.textbox6.text()
             AL = self.textbox3.text()
@@ -478,7 +488,9 @@ class XASCalcUI(QMainWindow):
             self.textbox6.setText('{0:0.4f}'.format(float(stp)*math.sqrt(2)))
             self.textbox3.setText('{0:0.2f}'.format(float(AL)*math.sqrt(2)))
             self.textbox4.setText('{0:0.2f}'.format(float(Area)/math.sqrt(2)))
-        
+            self.label4.setText('Projected Total Sample Absorption at E0 + 50 eV:')
+            self.label5.setText('Projected Sample Area Perpendicular to Beam [cm<sup>2</sup>]:')
+            self.label7.setText('Projected Estimated Edge Step:')
         if float(self.textbox6.text()) >1:
             self.textbox6.setStyleSheet("background-color:rgb(255,0,0)")
         else:
@@ -521,6 +533,7 @@ class XASCalcUI(QMainWindow):
         self.label7 = QLabel('Estimated Edge Step:')
         self.label7.setAlignment(Qt.AlignRight)
         OutputLayout.addWidget(self.label7, 2, 0)
+        self.label7.setWordWrap(True)
         self.generalLayout.addLayout(OutputLayout)
         
         #Create Label for Sample Mass
