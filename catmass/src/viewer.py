@@ -898,7 +898,7 @@ class XASCalcUI(QMainWindow):
         self.combo.setCurrentIndex(0)
         self.b1.setChecked(False)
         self.b2.setChecked(False)
-        self.textbox4.clear()
+        #self.textbox4.clear()
         self.textbox5.clear()
         self.textbox6.clear()
         self.textbox7.clear()
