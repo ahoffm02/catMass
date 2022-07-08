@@ -745,6 +745,8 @@ class XASCalcUI(QMainWindow):
         if self.b1.isChecked()== False:
             self.textbox_Xray_05.setText(Result)
         else:
+            from IPython import get_ipython
+            get_ipython().run_line_magic('matplotlib','qt')
             #Create plot of AL over energy range kspace over energy range and list reulsts table in last fig
             kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols = fct.XASEZero(Sample,Enot)
             #ploting limits
