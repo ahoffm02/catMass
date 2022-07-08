@@ -3,6 +3,8 @@
 Created on Sat Jul 10 22:18:20 2021
 
 @author: ashoff
+
+Version updated by jperezag
 """
 
 
@@ -20,21 +22,37 @@ from PyQt5.QtWidgets import QGridLayout
 
 from PyQt5.QtWidgets import QLineEdit
 from PyQt5.QtWidgets import QPushButton
-from PyQt5.QtWidgets import QVBoxLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtWidgets import QComboBox
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtWidgets import QTabWidget
 
+
+
 from PyQt5.QtGui import QIcon
+
+from PyQt5.QtWidgets import QRadioButton,QCheckBox
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button, RadioButtons, CheckButtons
+from PyQt5.QtGui import QPixmap
+
 
 
 ### How do I call this?
 from src import functions as fct
 
-
 #######################
 ##     MAIN VIEW     ##
 #######################
+
+#Matrix to save values
+saver= [None] *19
+samplesaver = [None]*6
+complexsaver = [None]*6
+#savers = np.empty((19, 5))
+
 
 # Create a subclass of QMainWindow to setup the calculator's  main GUI
 class XASCalcUI(QMainWindow):
@@ -46,20 +64,19 @@ class XASCalcUI(QMainWindow):
         self.title = 'CatMass - XAS Sample Mass Calculator'
         self.left = 100
         self.top = 100
-        self.width = 640
-        self.height = 480
+        self.width = 480#640
+        self.height = 640#480
         
         # Set main window's properties
         self.setWindowTitle(self.title)
         #self.setGeometry(self.left, self.top, self.width, self.height)
         
         # Set the central widgetand general layout
-        self.generalLayout = QVBoxLayout()
+        self.generalLayout = QHBoxLayout()
+        
         self._centralWidget = QWidget(self)
         self.setCentralWidget(self._centralWidget)
         self._centralWidget.setLayout(self.generalLayout)
-        
-        
         self._createSampleDilutionBlock()
         self._createXrayInputBlock()
         self._createResultsBlock()
@@ -89,10 +106,11 @@ class XASCalcUI(QMainWindow):
         Diluent_frame.setLineWidth(1)
                 
         self.generalLayout.addWidget(Diluent_frame)
-    
+        
         
         """Define Layout"""
         DilutionLayout = QGridLayout()
+        
         Diluent_frame.setLayout(DilutionLayout)
         
         '''Text Labels'''
@@ -100,7 +118,8 @@ class XASCalcUI(QMainWindow):
         self.label_dil00 = QLabel('Sample and Dilution Definition')
         self.label_dil00.setAlignment(Qt.AlignLeft)
         self.label_dil00.setStyleSheet("font-weight: bold; text-decoration: underline")
-        DilutionLayout.addWidget(self.label_dil00, 0, 0, 1, 2)
+        DilutionLayout.addWidget(self.label_dil00, 0, 0, 1, 1)
+        self.label_dil00.setWordWrap(True)
         self.generalLayout.addLayout(DilutionLayout)
         
         # Create "Sample" Label
@@ -126,6 +145,19 @@ class XASCalcUI(QMainWindow):
         self.label_dil04.setAlignment(Qt.AlignRight)
         DilutionLayout.addWidget(self.label_dil04, 3, 0)
         self.generalLayout.addLayout(DilutionLayout)
+        
+        # Creat "Dummy" label fo Co-ACCESS label
+       
+         
+        
+        self.label_dil05 = QLabel(self)
+        pixmap = QPixmap('co_access_logo_text.png')
+        self.label_dil05.setPixmap(pixmap)
+        self.label_dil05.setAlignment(Qt.AlignCenter)
+        DilutionLayout.addWidget(self.label_dil05, 6, 0,7,3)
+        self.label_dil05.resize(0.5, 1)
+        self.generalLayout.addLayout(DilutionLayout)
+        
         
         """Input Fields"""
         # Create Text Box for Sample Formula
@@ -158,6 +190,9 @@ class XASCalcUI(QMainWindow):
         DilutionLayout.addWidget(self.textbox_dil04, 3, 2)
         self.generalLayout.addLayout(DilutionLayout)
         
+        
+        
+        
         # Create Text Box for Diagnostics
         self.textbox_dil05 = QLineEdit()
         self.textbox_dil05.setPlaceholderText('Diagnostic')
@@ -168,11 +203,18 @@ class XASCalcUI(QMainWindow):
         
         
         """Buttons"""
-        # Create Button to Reset all Text Fields
+        # Create Button to Open Sample Builder
         self.button_dil00 = QPushButton('Sample Builder')
         DilutionLayout.addWidget(self.button_dil00, 0, 2)
         self.generalLayout.addLayout(DilutionLayout)
         self.button_dil00.clicked.connect(self.openSampleBuilder)
+        
+        # Create Button to Import Previous save
+        self.button_dil00 = QPushButton('Import Previous Save')
+        DilutionLayout.addWidget(self.button_dil00, 0, 1)
+        self.generalLayout.addLayout(DilutionLayout)
+        self.button_dil00.clicked.connect(self.PreviousSave)
+        
         
         # Create Button to Reset all Text Fields
         self.button_dil01 = QPushButton('Reset')
@@ -187,6 +229,10 @@ class XASCalcUI(QMainWindow):
         self.button_dil02.clicked.connect(self.calculateSampleComp)
         
         
+        
+        
+        
+        
     def _createXrayInputBlock(self):
         '''Define QFrame'''
         XrayInputFrame = QFrame()
@@ -194,7 +240,6 @@ class XASCalcUI(QMainWindow):
         XrayInputFrame.setLineWidth(1)
                 
         self.generalLayout.addWidget(XrayInputFrame)
-    
         
         """Define Layout"""
         InputLayout = QGridLayout()
@@ -205,6 +250,7 @@ class XASCalcUI(QMainWindow):
         self.label0 = QLabel('Edge Scan and Absorption Properties Definition')
         self.label0.setStyleSheet("font-weight: bold; text-decoration: underline")
         self.label0.setAlignment(Qt.AlignLeft)
+        self.label0.setWordWrap(True)
         InputLayout.addWidget(self.label0, 0, 0, 1, 2)
         
         # Create Label for Sample Input
@@ -227,17 +273,58 @@ class XASCalcUI(QMainWindow):
         
         # Create Lable for Desired Absorption Length
         self.label4 = QLabel('Total Sample Absorption at E0 + 50 eV:')
-        self.label4.setAlignment(Qt.AlignRight)
+        self.label4.setAlignment(Qt.AlignCenter)
         InputLayout.addWidget(self.label4, 4, 0)
+        self.label4.setWordWrap(True)
         self.generalLayout.addLayout(InputLayout)
         
         # Create Lable for Desired Area
         self.label5 = QLabel('Sample Area Perpendicular to Beam [cm<sup>2</sup>]:')
-        self.label5.setAlignment(Qt.AlignRight)
-        InputLayout.addWidget(self.label5, 5, 0)
+        self.label5.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label5, 9, 0)
+        self.label5.setWordWrap(True)
         self.generalLayout.addLayout(InputLayout)
         
+        # Create Lable for Co-ACCESS default cell Area
+        self.label6 = QLabel('Sample Area Perpendicular')
+        self.label6.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label6, 5, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        # Create Lable for Co-ACCESS default cell Area
+        self.label7 = QLabel('to Beam of Co-ACCESS')
+        self.label7.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label7, 6, 0)
+        self.generalLayout.addLayout(InputLayout)
+        # Create Lable for Co-ACCESS default cell Area
+        self.label8 = QLabel('Capillaries:')
+        self.label8.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label8, 7, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        # Create Lable for plot lower limit
+        self.label9 = QLabel('Lower Limit of μ Average Plot')
+        self.label9.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label9, 12, 0)
+        self.generalLayout.addLayout(InputLayout)
+        # Create Lable for plot upper limit
+        self.label10 = QLabel('Upper Limit of μ Average Plot')
+        self.label10.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label10, 13, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        # Create Lable for bed legnth
+        self.label11 = QLabel('Bed length [1 cm]')
+        self.label11.setAlignment(Qt.AlignCenter)
+        InputLayout.addWidget(self.label11, 8, 0)
+        self.generalLayout.addLayout(InputLayout)
+        
+        
         """Input Fields"""
+        
+        
+        
+        
         # Create Editable Textbox for Sample Stoichiometry
         self.textbox1 = QLineEdit()
         self.textbox1.setPlaceholderText('Defined Above')
@@ -270,36 +357,140 @@ class XASCalcUI(QMainWindow):
         self.textbox3.setFixedSize(150, 35)
         InputLayout.addWidget(self.textbox3, 4, 1)
         self.generalLayout.addLayout(InputLayout)
+        self.textbox3.setText('2.5')
         
+        
+        #checkbox to show plot
+        self.b1 = QCheckBox()
+        InputLayout.addWidget(self.b1, 11, 0)
+        #self.b1.setAlignment(Qt.AlignCenter)
+        self.b1.setText("Show Plot")
+        #checkbox to show results with cell at 45 degrees
+        self.b2 = QCheckBox()
+        InputLayout.addWidget(self.b2, 11, 1)
+        #self.b1.setAlignment(Qt.AlignCenter)
+        self.b2.setText("Sample at 45°")
+        self.b2.toggled.connect(self.b1_function)
+        
+        
+        
+        
+        # Radio button for Capillaries
+        self.radioButton1 = QRadioButton(self)
+        InputLayout.addWidget(self.radioButton1, 5, 1)
+        self.radioButton2 = QRadioButton()
+        InputLayout.addWidget(self.radioButton2, 6, 1)
+        self.radioButton3 = QRadioButton()
+        InputLayout.addWidget(self.radioButton3, 7, 1)
+        #self.radioButton4 = QRadioButton()
+        #InputLayout.addWidget(self.radioButton4, 5, 5)
+        self.radioButton1.setText("3 mm Capillary")
+        self.radioButton2.setText("1 mm Capillary")
+        self.radioButton3.setText("7 mm Pellet")
+        self.radioButton1.toggled.connect(self.radioButton1_function) 
+        self.radioButton2.toggled.connect(self.radioButton2_function) 
+        self.radioButton3.toggled.connect(self.radioButton3_function)
+     
+       
+            
         # Create Editable Textbox for Desired Area
         self.textbox4 = QLineEdit()
         self.textbox4.setPlaceholderText('Sample Area')
         self.textbox4.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox4, 5, 1)
+        InputLayout.addWidget(self.textbox4, 9, 1)
         self.generalLayout.addLayout(InputLayout)
         
+        
+        
+        # Create Editable Textbox for Plot lower limit
+        self.textbox11 = QLineEdit()
+        self.textbox11.setPlaceholderText('-200')
+        self.textbox11.setFixedSize(150, 35)
+        InputLayout.addWidget(self.textbox11, 12, 1)
+        self.generalLayout.addLayout(InputLayout)
+        self.textbox11.setText('-200')
+        # Create Editable Textbox for Plot upper limit
+        self.textbox12 = QLineEdit()
+        self.textbox12.setPlaceholderText('1000')
+        self.textbox12.setFixedSize(150, 35)
+        InputLayout.addWidget(self.textbox12, 13, 1)
+        self.generalLayout.addLayout(InputLayout)
+        self.textbox12.setText('1000')
+        
+        # Create Editable Textbox bed length
+        self.textbox13 = QLineEdit()
+        self.textbox13.setPlaceholderText('1')
+        self.textbox13.setFixedSize(150, 35)
+        InputLayout.addWidget(self.textbox13, 8, 1)
+        self.generalLayout.addLayout(InputLayout)
+        self.textbox13.setText('1')
+        
+
         # Create Editable Textbox for Diagnostics
         self.textbox_Xray_05 = QLineEdit()
         self.textbox_Xray_05.setPlaceholderText('Diagnostics')
         self.textbox_Xray_05.setAlignment(Qt.AlignCenter)
         #self.textbox5.setFixedSize(150, 35)
-        InputLayout.addWidget(self.textbox_Xray_05, 7, 0, 1, 2)
+        InputLayout.addWidget(self.textbox_Xray_05, 14, 0, 1, 2)
         self.generalLayout.addLayout(InputLayout)
         
         '''Buttons'''
         #Create Reset Button to Clear X-ray Input Field
         self.button_Input01 = QPushButton('Reset')
-        InputLayout.addWidget(self.button_Input01, 6, 0)
+        InputLayout.addWidget(self.button_Input01, 10, 0)
         self.generalLayout.addLayout(InputLayout)
         self.button_Input01.clicked.connect(self.clearDisplay)
-        
         #Create Button to Calcualte sample mass and step
         self.button_Input02 = QPushButton('Calculate Sample Mass')
-        InputLayout.addWidget(self.button_Input02 ,6, 1)
+        InputLayout.addWidget(self.button_Input02 ,10, 1)
         self.generalLayout.addLayout(InputLayout)
         self.button_Input02.clicked.connect(self.calculateResult)
         
-               
+        
+    def radioButton1_function(self):
+        if self.radioButton1.isChecked():
+            crossarea = float(self.textbox13.text())*0.3
+            self.textbox4.setText(str(crossarea))
+
+    def radioButton2_function(self):
+        if self.radioButton2.isChecked():
+            crossarea = float(self.textbox13.text())*0.1
+            self.textbox4.setText(str(crossarea))
+
+    def radioButton3_function(self):
+        if self.radioButton3.isChecked():
+            self.textbox13.setText('1')
+            self.textbox4.setText('0.38')
+    def b1_function(self):
+        import math
+                
+        if self.b2.isChecked()== False:
+            stp = self.textbox6.text()
+            AL = self.textbox3.text()
+            Area = self.textbox4.text()
+            self.textbox6.setText('{0:0.2f}'.format(float(stp)/math.sqrt(2)))
+            self.textbox3.setText('{0:0.2f}'.format(float(AL)/math.sqrt(2)))
+            self.textbox4.setText('{0:0.2f}'.format(float(Area)*math.sqrt(2)))
+        else:
+            stp = self.textbox6.text()
+            AL = self.textbox3.text()
+            Area = self.textbox4.text()
+            self.textbox6.setText('{0:0.4f}'.format(float(stp)*math.sqrt(2)))
+            self.textbox3.setText('{0:0.2f}'.format(float(AL)*math.sqrt(2)))
+            self.textbox4.setText('{0:0.2f}'.format(float(Area)/math.sqrt(2)))
+        
+        if float(self.textbox6.text()) >1:
+            self.textbox6.setStyleSheet("background-color:rgb(255,0,0)")
+        else:
+           self.textbox6.setStyleSheet("background-color:rgb(255,255,255)") 
+        
+        
+        
+        
+        
+        
+        
+        
     def _createResultsBlock(self):
         '''Define QFrame'''
         ResultsFrame = QFrame()
@@ -349,7 +540,22 @@ class XASCalcUI(QMainWindow):
         self.label10.setAlignment(Qt.AlignRight)
         OutputLayout.addWidget(self.label10, 5, 0)
         self.generalLayout.addLayout(OutputLayout)
-                
+        
+        # Create Dummy Label 
+        #self.label11 = QLabel('')
+        #self.label11.setAlignment(Qt.AlignRight)
+        #OutputLayout.addWidget(self.label11, 12, 0,5,1)
+        #self.generalLayout.addLayout(OutputLayout)
+        self.label11 = QLabel(self)
+        pixmap = QPixmap('SSRL_logo.png')
+        self.label11.setPixmap(pixmap)
+        self.label11.setAlignment(Qt.AlignCenter)
+        OutputLayout.addWidget(self.label11, 12, 0,5,3)
+        self.label11.resize(0.5, 1)
+        self.generalLayout.addLayout(OutputLayout) 
+        
+        
+        
         """Output Fields"""
         # Create Editable Textbox for Total Sample Mass
         self.textbox5 = QLineEdit()
@@ -391,6 +597,61 @@ class XASCalcUI(QMainWindow):
         OutputLayout.addWidget(self.textbox9, 5, 1)
         self.generalLayout.addLayout(OutputLayout)
         
+        # Create Editable Textbox for ploty
+        #self.textbox10 = QLineEdit()
+        #self.textbox10.setFixedSize(150, 35)
+        #self.textbox10.setAlignment(Qt.AlignRight)
+        #self.textbox10.setReadOnly(True)
+        #OutputLayout.addWidget(self.textbox10, 6, 1)
+        #self.generalLayout.addLayout(OutputLayout)
+        
+       
+        
+        self.button_ptl00 = QPushButton('Save Results')
+        OutputLayout.addWidget(self.button_ptl00, 0, 1)
+        self.generalLayout.addLayout(OutputLayout)
+        self.button_ptl00.clicked.connect(self.SaveResults)
+        
+        
+        
+    
+        
+    
+    def SaveResults(self):
+        
+        saver[1] = self.textbox_dil01.text()
+        saver[2] = self.textbox_dil02.text()
+        saver[3] = self.textbox_dil03.text()
+        saver[4] = self.textbox_dil04.text()
+        saver[5] = self.textbox1.text()
+        saver[6] = self.textbox2.text()
+        saver[7] = self.textbox3.text()
+        saver[8] = self.textbox4.text()
+        saver[9] = self.textbox11.text()
+        saver[10] = self.textbox12.text()
+        saver[11] = self.textbox5.text()
+        saver[12] = self.textbox6.text()
+        saver[13] = self.textbox7.text()
+        saver[14] = self.textbox8.text()
+        print(saver)
+        
+    def PreviousSave(self):
+        
+        self.textbox_dil01.setText(saver[1])
+        self.textbox_dil02.setText(saver[2])
+        self.textbox_dil03.setText(saver[3])
+        self.textbox_dil04.setText(saver[4])
+        self.textbox1.setText(saver[5])
+        self.textbox2.setText(saver[6])
+        self.textbox3.setText(saver[7])
+        self.textbox4.setText(saver[8])
+        self.textbox11.setText(saver[9])
+        self.textbox12.setText(saver[10])
+        self.textbox5.setText(saver[11])
+        self.textbox6.setText(saver[12])
+        self.textbox7.setText(saver[13])
+        self.textbox8.setText(saver[14])
+        
         
     def calculateSampleComp(self):
         """Evaluate expressions"""
@@ -405,16 +666,21 @@ class XASCalcUI(QMainWindow):
         else:
             self.textbox1.setText(Result)
             self.textbox_dil05.setText(Error_message)
-
-    
+        
+        
     def calculateResult(self):
         """Evaluate expressions."""
+        
+        
+        
         Sample = self.textbox1.text()
         Element = self.textbox2.text()
         Edge = self.combo.currentText()
         AL = self.textbox3.text()
         Area = self.textbox4.text()
+        self.textbox6.setStyleSheet("background-color:rgb(255,255,255)")
         
+        #Area = self.combo2.currentText()
         if self.textbox_dil03.text() == '':
             A = 1
         else:
@@ -429,19 +695,177 @@ class XASCalcUI(QMainWindow):
         MF_Samp = A/(A+B)
         MF_Dil = 1-MF_Samp
         
-        Result, Enot, ms, stp = fct.XASMassCalc(Sample, Element, Edge, Area, AL)
+        Result, Enot, ms, stp,muave = fct.XASMassCalc(Sample, Element, Edge, Area, AL)
+        
+        import math
+        
+        stp45 = stp*math.sqrt(1)
+        AL45 = float(AL)*math.sqrt(1)
+        Area45 = float(Area)/math.sqrt(1)
         
         if 'ERROR' in Result:
             self.textbox_Xray_05.setText(Result)
         else:
             self.textbox5.setText('{0:0.2f}'.format(ms))
-            self.textbox6.setText('{0:0.4f}'.format(stp))
+            if self.b2.isChecked()== False:
+                self.textbox6.setText('{0:0.4f}'.format(stp))
+            else:
+                self.textbox6.setText('{0:0.4f}'.format(stp45))
+                self.textbox3.setText('{0:0.2f}'.format(AL45))
+                self.textbox4.setText('{0:0.2f}'.format(Area45))
+                
+                
+                
+            if stp >1:
+                self.textbox6.setStyleSheet("background-color:rgb(255,0,0)")
+            if self.b2.isChecked()== True and stp45 >1:
+                self.textbox6.setStyleSheet("background-color:rgb(255,0,0)")                
             self.textbox7.setText('{0:0.2f}'.format(ms*MF_Samp))
             self.textbox8.setText('{0:0.2f}'.format(ms*MF_Dil))
             self.textbox9.setText('{0:0.0f}'.format(Enot))
             self.textbox_Xray_05.clear()
-
+        
             
+                        
+        
+        #if self.textbox11.text() == '' or self.textbox12.text() == '':
+        if self.b1.isChecked()== False:
+            self.textbox_Xray_05.setText(Result)
+        else:
+            #Create plot of AL over energy range kspace over energy range and list reulsts table in last fig
+            kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols = fct.XASEZero(Sample,Enot)
+            #ploting limits
+            delta1 = float(self.textbox11.text())
+            delta2 = float(self.textbox12.text())
+            self.textbox_Xray_05.clear()
+            start = delta1
+            interval = 0.5
+            stop = delta2+interval
+            figure, axis = plt.subplots(1, 3,figsize=(16,5))
+            
+            #create vector for x axis of fig 1 and fif 2
+            x = np.arange(start, stop, interval)
+            x2 = np.arange(1, stop, interval)
+            #define how long the vectors are
+            length = len(x)
+            length2 = len(x2)
+            length3 = len(kspaceedges)
+            #define blank y values to be populated by later functions
+            y  = [None] * length
+            y2  = [None] * length2
+            y3 = [None] * length3
+            
+            kspace  = [None] *length2
+        
+            #kpace plot y values for now
+            for i in range(length3):
+                y3[i]=0
+            #kspace  y value points are edges of element in sample that could show up in kspace
+            for i in range(length2):
+                kspace[i] = fct.kspacecalc(x2[i])
+                #y2[i] = fct.XASPLOTTER(Sample, Element, Edge, Area, AL, x2[i],delta1)
+                #y2[i] =float(y2[i])*(ms/float(Area))/1000
+                #y2[i] = (y2[i]-float(AL))/float(AL)
+                y2[i] = 0
+            #plot of modified mu average (Absorption length over energy range)
+            for i in range(length):
+                if self.b2.isChecked()== False:
+                    y[i] = fct.XASPLOTTER(Sample, Element, Edge, Area, AL, x[i],delta1)
+                    y[i] =float(y[i])*(ms/float(Area))/1000
+                else:
+                    y[i] = fct.XASPLOTTER(Sample, Element, Edge, Area, str(AL45), x[i],delta1) 
+                    #y[i] =float(y[i])*(ms/float(Area))*math.sqrt(1) /1000
+                    y[i] =float(y[i])*(ms/float(Area))/1000
+            #redefining x axis to absolute scale
+            x = np.arange(start, stop, interval)+Enot
+            
+            
+            
+            #defining plot names, axis labels and plot colors
+            axis[0].plot(x, y, color = 'g', linestyle= '-') #label="XXXX \nI am Trying To Add a New Line of Text"
+            
+            axis[0].set_xlabel(r"Photon Energy (eV)")
+            axis[0].set_ylabel(r"$µ_{average}$ • Mass/Area")
+            axis[1].set_xlim([0, fct.kspacecalc(delta2)])
+            axis[2].xaxis.set_visible(False)
+            axis[2].yaxis.set_visible(False)
+            #import matplotlib.ticker as mtick
+            #axis[1].yaxis.set_major_formatter(mtick.PercentFormatter())
+            
+            axis[1].plot(kspace, y2,color = 'b', linestyle= '-')
+            axis[1].plot(kspaceedges, y3,color = 'g', linestyle="",marker="o")
+            
+            axis[1].set_xlabel(r"k ($\AA$⁻¹)")
+            
+            #defining labels for edges that might show up in kspace region
+            for i, txt in enumerate(atomicedgesymbols):
+                axis[1].annotate(txt, (kspaceedges[i], y3[i]), # these are the coordinates to position the label
+                textcoords="offset points", # how to position the text
+                xytext=(10.7,22), # distance from text to points (x,y)
+                ha='center',rotation = 45) # horizontal alignment can be left, right or center
+          
+            #defining labels for edges that might show up in kspace region
+            for i, txt in enumerate(atomicsymbols):
+                axis[1].annotate(txt, (kspaceedges[i], y3[i]), # these are the coordinates to position the label
+                textcoords="offset points", # how to position the text
+                xytext=(0,10), # distance from text to points (x,y)
+                ha='center',rotation = 45)
+            
+            #listing results values in 3 figure
+            left = 0.01
+            width = 0.01
+            bottom  = 0.01
+            height = .6
+            right = left + width
+            top = bottom + height
+            
+            #title functions need to be worked out in next version
+            #if self.tab1.textbox_tab101.text() =='' or self.tab1.textbox_tab2_05 == '' : 
+                #if self.textbox_dil04.text() =='' or self.textbox_dil03.text() =='':
+                   # axis[1].set_title(self.textbox_dil01.text())
+               # else:
+                    #axis[1].set_title(self.textbox_dil01.text() + ' '+ self.textbox_dil02.text() +' '+ self.textbox_dil03.text() +':'+self.textbox_dil04.text())
+           # else:
+               # axis[1].set_title(self.tab1.textbox_tab101.text())
+            #if self.textbox_dil04.text() =='' or self.textbox_dil03.text() =='':
+                #axis[1].set_title(self.textbox_dil01.text())
+            #else:
+                #axis[1].set_title(self.textbox_dil01.text() + ' '+ self.textbox_dil02.text() +' '+ self.textbox_dil03.text() +':'+self.textbox_dil04.text())
+            
+            
+            axis[2].text(right, top, "Total Sample Absorption:")
+            axis[2].text(right, top-.05, "Estimated Edge Step:")
+            axis[2].text(right, top-.1, "Sample mass[mg]:")
+            axis[2].text(right, top-.15, "Diluent mass[mg]:")
+            axis[2].text(right, top-.2, "Cell:")
+            axis[2].text(right+0.5, top, self.textbox3.text())
+            axis[2].text(right+0.5, top-0.05, self.textbox6.text())
+            axis[2].text(right+0.5, top-0.1, self.textbox7.text())
+            axis[2].text(right+0.5, top-0.15, self.textbox8.text())
+            if self.radioButton1.isChecked():
+                axis[2].text(right+0.5, top-0.2, "3 mm")
+            if self.radioButton2.isChecked():
+                axis[2].text(right+0.5, top-0.2, "1 mm")
+            if self.radioButton3.isChecked():
+                axis[2].text(right+0.5, top-0.2, "Pellet")
+        
+            
+            
+            plt.show
+            #code the allow for figure to be copied to clipboard
+            import io
+            from PyQt5.QtGui import QImage
+            from PyQt5.QtWidgets import QApplication
+            def add_figure_to_clipboard(event):
+                if event.key == "ctrl+c":
+                   with io.BytesIO() as buffer:
+                        figure.savefig(buffer)
+                        QApplication.clipboard().setImage(QImage.fromData(buffer.getvalue()))
+
+            figure.canvas.mpl_connect('key_press_event', add_figure_to_clipboard)
+
+        
+           
     def clearDilutionInput(self):
         """Clear the Sample and Dilutino Input displays"""
         self.textbox_dil01.clear()
@@ -455,20 +879,33 @@ class XASCalcUI(QMainWindow):
         """Clear the input display."""
         self.textbox1.clear()
         self.textbox2.clear()
-        self.textbox3.clear()
+        self.textbox3.setText('2.5')
         self.combo.setCurrentIndex(0)
+        self.b1.setChecked(False)
+        self.b2.setChecked(False)
         self.textbox4.clear()
         self.textbox5.clear()
         self.textbox6.clear()
         self.textbox7.clear()
         self.textbox8.clear()
         self.textbox_Xray_05.clear()
-        
+        self.textbox11.setText('-200')
+        self.textbox12.setText('1000')
+        self.textbox13.setText('1')
 
+    
+        
+        
+        
+        
     def openSampleBuilder(self):
         self.dialog = SampleBuilder(self)
         self.dialog.show()
 
+    
+  
+
+  
 #########################
 ##     SECOND VIEW     ##
 #########################        
@@ -556,6 +993,7 @@ class MyTableWidget(QWidget):
         self.tab1.setLayout(Tab1Layout)
         
         
+        
         """Input Fields"""
         # Create Text Box for Support Input
         self.textbox_tab101 = QLineEdit()
@@ -598,6 +1036,13 @@ class MyTableWidget(QWidget):
         #self.textbox_tab106.setFixedSize(150, 35)
         Tab1Layout.addWidget(self.textbox_tab106, 6, 0, 1, 2)
         self.tab1.setLayout(Tab1Layout)
+        #complexsaver
+        if samplesaver[1]!= '':
+            self.textbox_tab101.setText(samplesaver[1])
+            self.textbox_tab102.setText(samplesaver[2])
+            self.textbox_tab103.setText(samplesaver[3])
+            self.textbox_tab104.setText(samplesaver[4])
+            self.textbox_tab105.setText(samplesaver[5])
         
         
         """Buttons"""
@@ -606,6 +1051,13 @@ class MyTableWidget(QWidget):
         self.tab1.setLayout(Tab1Layout)
         self.button_tab1_01.clicked.connect(self.UpdateSampleMetal)
         
+        #Create Reset Button to Clear X-ray Input Field
+        self.button_tab1_02 = QPushButton('Reset')
+        Tab1Layout.addWidget(self.button_tab1_02, 5, 0)
+        self.tab1.setLayout(Tab1Layout)
+        self.button_tab1_02.clicked.connect(self.clearSampleBuildertab1)
+        
+                                         
  
         # Create second tab
         """Define Layout"""
@@ -698,7 +1150,13 @@ class MyTableWidget(QWidget):
         #self.textbox_tab2_06.setFixedSize(150, 35)
         Tab2Layout.addWidget(self.textbox_tab2_06, 6, 0, 1, 2)
         self.tab2.setLayout(Tab2Layout)
-        
+        #complexsaver[1]!= '':
+        if complexsaver[5]!= '':
+            self.textbox_tab2_01.setText(complexsaver[1])
+            self.textbox_tab2_02.setText(complexsaver[2])
+            self.textbox_tab2_03.setText(complexsaver[3])
+            self.textbox_tab2_04.setText(complexsaver[4])
+            self.textbox_tab2_05.setText(complexsaver[5])
         
         """Buttons"""
         self.button_tab2_01 = QPushButton("Update Sample")
@@ -706,13 +1164,39 @@ class MyTableWidget(QWidget):
         self.tab2.setLayout(Tab2Layout)
         self.button_tab2_01.clicked.connect(self.UpdateSampleComplex)
                 
-
+        #Create Reset Button to Clear X-ray Input Field
+        self.button_tab2_02 = QPushButton('Reset')
+        Tab2Layout.addWidget(self.button_tab2_02, 5, 0)
+        self.tab2.setLayout(Tab2Layout)
+        self.button_tab2_02.clicked.connect(self.clearSampleBuildertab2)
         
         
         # Add tabs to widget
         self.layout.addWidget(self.tabs)
         self.setLayout(self.layout)
+       
         
+       
+    def clearSampleBuildertab1(self):
+        "Clear the sample builder tab of inputs"
+        self.textbox_tab101.clear()
+        self.textbox_tab102.clear()
+        self.textbox_tab103.clear()
+        self.textbox_tab104.clear()
+        self.textbox_tab105.clear()
+        #samplesaver.clear()
+        #samplesaver = [None]*6
+        
+        
+    def clearSampleBuildertab2(self):
+        "Clear the sample builder tab of inputs"
+        self.textbox_tab2_01.clear()
+        self.textbox_tab2_02.clear()
+        self.textbox_tab2_03.clear()
+        self.textbox_tab2_04.clear()
+        self.textbox_tab2_05.clear()  
+        #complexsaver.clear()
+        #complexsaver = [None]*6
         
         
     def UpdateSampleMetal(self):
@@ -728,6 +1212,12 @@ class MyTableWidget(QWidget):
             self.textbox_tab106.setText(Result) 
         
         else:
+            #samplesaver = [None]*6            
+            samplesaver[1] = self.textbox_tab101.text()
+            samplesaver[2] = self.textbox_tab102.text()
+            samplesaver[3] = self.textbox_tab103.text()
+            samplesaver[4] = self.textbox_tab104.text()
+            samplesaver[5] = self.textbox_tab105.text()
             self.parent().parent().textbox_dil01.setText(Result)
             self.parent().close()
 
@@ -747,6 +1237,12 @@ class MyTableWidget(QWidget):
                 self.textbox_tab2_06.setText(Result) 
         
             else:
+                #complexsaver = [None]*6 
+                complexsaver[1] = self.textbox_tab2_01.text()
+                complexsaver[2] = self.textbox_tab2_02.text()
+                complexsaver[3] = self.textbox_tab2_03.text()
+                complexsaver[4] = self.textbox_tab2_04.text()
+                complexsaver[5] = self.textbox_tab2_05.text()
                 self.parent().parent().textbox_dil01.setText(Result)
                 self.parent().close()
         
@@ -764,6 +1260,11 @@ class MyTableWidget(QWidget):
                 self.textbox_tab2_06.setText(Result) 
         
             else:
+                complexsaver[1] = self.textbox_tab2_01.text()
+                complexsaver[2] = self.textbox_tab2_02.text()
+                complexsaver[3] = self.textbox_tab2_03.text()
+                complexsaver[4] = self.textbox_tab2_04.text()
+                complexsaver[5] = self.textbox_tab2_05.text()
                 self.parent().parent().textbox_dil01.setText(Result)
                 self.parent().close()
         
@@ -771,7 +1272,10 @@ class MyTableWidget(QWidget):
         else:
             self.textbox_tab2_06.setText('COMPLEX LODAING/METAL LOADING/METAL CENTER INCORRECTLY DEFINED')
             
-
+   
+   
+      
+        
 ###################
 #                 #
 #    MAIN LOOP    #
