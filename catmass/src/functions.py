@@ -158,7 +158,9 @@ def XASMassCalc(Sample, Element, Edge, Area, AL, gamma = 50 ,delta = 50):
         elif Edge == 'L2':
             E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),2)        
         elif Edge == 'L3':
-            E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),3)    
+            E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),3)  
+        else:
+            E0 = float(Edge)/1000
 
 
 
@@ -585,6 +587,21 @@ def kspacecalc(EminusEnot):
         return kfromE
 
 
+def BeamTrans(Sample):
+    Sample_Elements = xraylib.CompoundParser(Sample)
+    #new_mu = np.multiply(Photo_XS[x,:],Elements['massFractions'][x])
+    #mu_tot = np.vstack((mu_tot, new_mu))
+    densities =[]
+    
+    for i in range(0,Sample_Elements['nElements']):
+        atomicnumber = Sample_Elements['Elements'][i]
+        density = xraylib.ElementDensity(atomicnumber)
+        densityfrac = density*Sample_Elements['massFractions'][i]
+        densities = np.append(densities,density)
+    sample_density = np.sum(densities) 
+    
+    return Sample_Elements,densityfrac,densities
+
 def XASEZero(Sample,Enot):
     
 
@@ -608,7 +625,7 @@ def XASEZero(Sample,Enot):
                 #kspaceedge = math.sqrt((8*math.pi**2*9.10938291*10**-31)/(6.6260695729*10**-34*4.13566751691*10**-15)*(atomicedge))*1/(10**10)
                 kspaceedge = kspacecalc(atomicedge)
                 kspaceedges= np.append(kspaceedges, kspaceedge)
-                atomicedges = np.append(atomicedges, atomicedge)
+                atomicedges = np.append(atomicedges, atomicedge+Enot)
                 atomicsymbols = np.append(atomicsymbols, atomicsymbol)
                 atomicnumbers = np.append(atomicnumbers, atomicnumber)
                 atomicedgesymbols = np.append(atomicedgesymbols, y[j])
@@ -616,5 +633,61 @@ def XASEZero(Sample,Enot):
     
     return kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
     
+def XASEZeroList(Sample):
+    
 
+    Elements = xraylib.CompoundParser(Sample)
+    y = ['K','L1','L2','L3'] # add the other edges if need to y vector
+    atomicnumbers=[]
+    atomicsymbols=[]
+    atomicedges=[]
+    atomicedgesymbols=[]
+    k = 0
+    
+    for i in range(0,Elements['nElements']):
+        atomicnumber = Elements['Elements'][i]
+        atomicsymbol = xraylib.AtomicNumberToSymbol(atomicnumber)
+        for j in range(len(y)):
+            if xraylib.EdgeEnergy(atomicnumber,j)*1000-100 <=0 or xraylib.EdgeEnergy(atomicnumber,j)*1000 <=200:
+                k = k
+            else:
+                atomicedge = xraylib.EdgeEnergy(atomicnumber,j)*1000
+                atomicedges = np.append(atomicedges, atomicedge)
+                atomicsymbols = np.append(atomicsymbols, atomicsymbol)
+                atomicnumbers = np.append(atomicnumbers, atomicnumber)
+                atomicedgesymbols = np.append(atomicedgesymbols, y[j])
+            
+    
+    return atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
 
+def unitconvert(thickness,Cindex):
+    if Cindex == 0 :
+        thickness = float(thickness)*2.54
+           
+    elif Cindex == 1 :
+        thickness = float(thickness)*0.00254
+           
+    elif Cindex == 2 :
+        thickness = float(thickness)
+            
+    elif Cindex == 3 :
+        thickness = float(thickness)*0.1
+            
+    elif Cindex == 4 :
+        thickness = float(thickness)*0.0001
+        
+    return thickness
+
+import xraydb
+def ionchamberdensity(Ptotal,gas1,gas2,molfrac):
+    
+    formula1,elementdensity1 = xraydb.get_material(gas1)
+    formula2,elementdensity2 = xraydb.get_material(gas2)
+    densitymix = molfrac*elementdensity1+(1-molfrac)*elementdensity2
+    iondensity = Ptotal*densitymix/760
+    return iondensity
+    
+    
+    
+    
+    
