@@ -1,24 +1,35 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jul  9 15:06:18 2021
+Created on Tue Apr  4 10:17:34 2023
 
 @author: ashoff
 """
 
-############################
-#   Packages and Modules   #
-############################
+import sys
+import os
 
 import numpy as np
+
 import xraylib
+import xraydb
 
 
 ##################
 #    FUNCTIONS   #
 ##################
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
 
-def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
+    return os.path.join(base_path, relative_path)
+
+
+def XASMassCalc(Sample, Element, Edge, Area, AL, gamma = 50 ,delta = 50):
     '''
     
 
@@ -33,7 +44,7 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
     Area : TYPE
         DESCRIPTION.
     AL : TYPE, optional
-        DESCRIPTION. The default is 2.5.
+        DESCRIPTION. The default is 2.6.
     delta : TYPE, optional
         DESCRIPTION. The default is 50.
 
@@ -75,7 +86,7 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
         area in sample holder is being illuminated.
     AL : FLOAT, optional
         Desired total absorption cross-section of the sample at delta eV above
-        the edge. Tthe default is 2.5.
+        the edge. Tthe default is 2.6.
     delta : FLOAT, optional
         Energy [eV] aove the edge energy to calcualte the sampel mass at and energy
         around the edge energy [E0+/- delta] to calcualte the tranmission edge
@@ -96,35 +107,59 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
     
     ERROR1 = 'ERROR - Sample not Defined'
     ERROR2 = 'ERROR - Element to be Scanned not Defined'
-    ERROR3 = 'ERROR - Absorption Lenght not Defined'
+    ERROR3 = 'ERROR - Absorption Length not Defined'
     ERROR4 = 'ERROR - Sample Area not Defined'
-
-    delta = delta/1000    
+    ERROR5 = 'ERROR - Absorption Length not Defined'
+    #delta = 50 #eV
+    
+    delta = delta/1000  #converted to keV forxraylib
+    gamma = gamma/1000
+    
     Error_Statement = 'NONE'
     E0 = 0
     mass = 0
-    step = 0    
+    step = 0
+    #AL = 0
+       
 
     if Sample == '':
         Error_Statement = ERROR1
-        return Error_Statement, E0, mass, step
+        return Error_Statement, E0, mass, step, AL
     
     elif Element == '':
         Error_Statement = ERROR2
-        return Error_Statement, E0, mass, step
+        return Error_Statement, E0, mass, step, AL
     
     elif AL == '':
         Error_Statement = ERROR3
-        return Error_Statement, E0, mass, step
+        return Error_Statement, E0, mass, step, AL
     
     elif Area == '':
         Error_Statement = ERROR4
-        return Error_Statement, E0, mass, step
-
+        return Error_Statement, E0, mass, step, AL
+    elif AL == '':
+        Error_Statement = ERROR5
+        return Error_Statement, E0, mass, step, AL
+    
     else:
     
         #Convert Strings to Floats
+        
+        
         Al = float(AL)
+        
+        
+        
+        
+        
+        #if Area == '3 mm Capillary':
+            #Area = '0.3'
+        #elif Area == '1 mm Capillary':
+            #Area = '0.1'
+        #elif Area == 'Pellet':
+            #Area = '0.38'       
+        #elif Area == 'Other':
+           # Area = Area  
         
         area = float(Area)
         
@@ -139,16 +174,21 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
         elif Edge == 'L2':
             E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),2)        
         elif Edge == 'L3':
-            E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),3)    
+            E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element),3)  
+        else:
+            E0 = float(Edge)/1000
+
+
+
 
         if Elements['nElements']>1:
             # Determine Photabsorption Cross Sections for each element at E0 +/- 50 eV
             Photo_XS = []
             for x in range(0,Elements['nElements']):
                 if x == 0:
-                    Photo_XS = [xraylib.CS_Photo(Elements['Elements'][x], E0-delta), xraylib.CS_Photo(Elements['Elements'][x], E0+delta)]
+                    Photo_XS = [xraylib.CS_Photo(Elements['Elements'][x], E0-delta), xraylib.CS_Photo(Elements['Elements'][x], E0+gamma)]
                 else:
-                    newPXS = [xraylib.CS_Photo(Elements['Elements'][x], E0-delta),xraylib.CS_Photo(Elements['Elements'][x], E0+delta)]
+                    newPXS = [xraylib.CS_Photo(Elements['Elements'][x], E0-delta),xraylib.CS_Photo(Elements['Elements'][x], E0+gamma)]
                     Photo_XS = np.vstack((Photo_XS,newPXS)) 
 
             # Calcualte Mass Weighted Photo Absorption Cross Section:
@@ -159,7 +199,7 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
                 else:
                     new_mu = np.multiply(Photo_XS[x,:],Elements['massFractions'][x])
                     mu_tot = np.vstack((mu_tot, new_mu))
-
+                    
             mu_ave = np.sum(mu_tot, axis = 0)
 
             # Calculate Sample mass @ E0 + 50 eV and edge step
@@ -171,11 +211,11 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
             step = np.max(step)
             mass = mass*1000
     
-            return Error_Statement, E0, mass, step
+            return Error_Statement, E0, mass, step, mu_ave[1]
     
         else:
             # Determine Photabsorption Cross Sections for element at E0 +/- 50 eV
-            Photo_XS = [xraylib.CS_Photo(Elements['Elements'][0], E0-delta), xraylib.CS_Photo(Elements['Elements'][0], E0+delta)]
+            Photo_XS = [xraylib.CS_Photo(Elements['Elements'][0], E0-delta), xraylib.CS_Photo(Elements['Elements'][0], E0+gamma)]
         
             # Calculate Sample mass @ E0 + 50 eV and edge step
 
@@ -184,7 +224,16 @@ def XASMassCalc(Sample, Element, Edge, Area, AL = 2.5, delta = 50):
             E0 = E0*1000
             mass = mass*1000
         
-            return Error_Statement, E0, mass, step
+            return Error_Statement, E0, mass, step, mu_ave[1]
+        
+def XASPLOTTER(Sample, Element, Edge, Area, AL, gamma ,gamma2,delta = 50):
+    #from src import functions as fct
+    
+    Result2, Enot2, ms2, stp3 ,muave = XASMassCalc(Sample, Element, Edge, Area, AL, gamma, delta = 50)
+    
+    return muave
+
+
 
 
 def XASStoichCalc(Sample1, Sample2, Sample1_DR, Sample2_DR):
@@ -546,3 +595,109 @@ def ComplexCalculateSample(Complex, Metal_Loading, Metal_Site, Support):
     else:
         return ERROR3
     
+
+def kspacecalc(EminusEnot):
+        import math
+        kfromE = math.sqrt((8*math.pi**2*9.10938291*10**-31)/(6.6260695729*10**-34*4.13566751691*10**-15)*(EminusEnot))*1/(10**10)
+        
+        return kfromE
+
+
+def BeamTrans(Sample):
+    Sample_Elements = xraylib.CompoundParser(Sample)
+    #new_mu = np.multiply(Photo_XS[x,:],Elements['massFractions'][x])
+    #mu_tot = np.vstack((mu_tot, new_mu))
+    densities =[]
+    
+    for i in range(0,Sample_Elements['nElements']):
+        atomicnumber = Sample_Elements['Elements'][i]
+        density = xraylib.ElementDensity(atomicnumber)
+        densityfrac = density*Sample_Elements['massFractions'][i]
+        densities = np.append(densities,density)
+    #sample_density = np.sum(densities) 
+    
+    return Sample_Elements,densityfrac,densities
+
+def XASEZero(Sample,Enot):
+    
+
+    Elements = xraylib.CompoundParser(Sample)
+    y = ['K','L1','L2','L3'] # add the other edges if need to y vector
+    atomicnumbers=[]
+    atomicsymbols=[]
+    atomicedges=[]
+    atomicedgesymbols=[]
+    kspaceedges = []
+    k = 0
+    
+    for i in range(0,Elements['nElements']):
+        atomicnumber = Elements['Elements'][i]
+        atomicsymbol = xraylib.AtomicNumberToSymbol(atomicnumber)
+        for j in range(len(y)):
+            atomicedge = xraylib.EdgeEnergy(atomicnumber,j)*1000-Enot
+            if atomicedge <=0:
+                k = k
+            else:
+                #kspaceedge = math.sqrt((8*math.pi**2*9.10938291*10**-31)/(6.6260695729*10**-34*4.13566751691*10**-15)*(atomicedge))*1/(10**10)
+                kspaceedge = kspacecalc(atomicedge)
+                kspaceedges= np.append(kspaceedges, kspaceedge)
+                atomicedges = np.append(atomicedges, atomicedge+Enot)
+                atomicsymbols = np.append(atomicsymbols, atomicsymbol)
+                atomicnumbers = np.append(atomicnumbers, atomicnumber)
+                atomicedgesymbols = np.append(atomicedgesymbols, y[j])
+            
+    
+    return kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
+    
+def XASEZeroList(Sample):
+    
+
+    Elements = xraylib.CompoundParser(Sample)
+    y = ['K','L1','L2','L3'] # add the other edges if need to y vector
+    atomicnumbers=[]
+    atomicsymbols=[]
+    atomicedges=[]
+    atomicedgesymbols=[]
+    k = 0
+    
+    for i in range(0,Elements['nElements']):
+        atomicnumber = Elements['Elements'][i]
+        atomicsymbol = xraylib.AtomicNumberToSymbol(atomicnumber)
+        for j in range(len(y)):
+            if xraylib.EdgeEnergy(atomicnumber,j)*1000-100 <=0 or xraylib.EdgeEnergy(atomicnumber,j)*1000 <=200:
+                k = k
+            else:
+                atomicedge = xraylib.EdgeEnergy(atomicnumber,j)*1000
+                atomicedges = np.append(atomicedges, atomicedge)
+                atomicsymbols = np.append(atomicsymbols, atomicsymbol)
+                atomicnumbers = np.append(atomicnumbers, atomicnumber)
+                atomicedgesymbols = np.append(atomicedgesymbols, y[j])
+            
+    
+    return atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
+
+def unitconvert(thickness,Cindex):
+    if Cindex == 0 :
+        thickness = float(thickness)*2.54
+           
+    elif Cindex == 1 :
+        thickness = float(thickness)*0.00254
+           
+    elif Cindex == 2 :
+        thickness = float(thickness)
+            
+    elif Cindex == 3 :
+        thickness = float(thickness)*0.1
+            
+    elif Cindex == 4 :
+        thickness = float(thickness)*0.0001
+        
+    return thickness
+
+def ionchamberdensity(Ptotal,gas1,gas2,molfrac):
+    
+    formula1,elementdensity1 = xraydb.get_material(gas1)
+    formula2,elementdensity2 = xraydb.get_material(gas2)
+    densitymix = molfrac*elementdensity1+(1-molfrac)*elementdensity2
+    iondensity = Ptotal*densitymix/760
+    return iondensity

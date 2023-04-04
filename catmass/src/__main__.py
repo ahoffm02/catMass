@@ -1,10 +1,9 @@
 """ Run the viewer """
 #
 import sys
+
 from PyQt5.QtWidgets import QApplication
-#
-# import viewer
-#import catmass
+
 import src.viewer as viewer
 
 def main():
