@@ -1058,7 +1058,19 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
         fluorescence_band = [x_xrayf_lines[xrayf_lines_name.index(Edge[0]+'a1'+' '+Element+' '+Edge)]-250,x_xrayf_lines[xrayf_lines_name.index(Edge[0]+'a1'+' '+Element+' '+Edge)]+250, max(y_xrayf_lines)]
     except:
-        fluorescence_xlim = [float(Edge)-800, float(Edge)+800]  # v3: int(Edge); change F7
+        # Change F7: v3 used int(Edge) here, which crashed for an "Other" energy with a decimal,
+        # for L1/L2 edges (they have no alpha-1 line) and for an element absent from the sample.
+        # Now: "Other" -> the energy (as v3); otherwise the strongest emission line of the
+        # scanned edge (alpha-1 for K and L3, so v3's choice), or E0 if there is none.
+        own = [i for i, n in enumerate(xrayf_lines_name) if n.endswith(' '+Element+' '+Edge)]
+        if Edge not in EDGE_SHELLS:
+            centre = float(Edge)
+        elif own:
+            centre = x_xrayf_lines[max(own, key=lambda i: y_xrayf_lines[i])]
+            fluorescence_band = [centre-250, centre+250, max(y_xrayf_lines)]
+        else:
+            centre = Enot
+        fluorescence_xlim = [centre-800, centre+800]
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
 
     for i in range(length4):
@@ -1070,7 +1082,10 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
     return {
         'error': None,
         'energy': {'x': x, 'y': y, 'xlim': energy_xlim, 'ylim': energy_ylim,
-                   'edges_E': Enots, 'edges_absorption': muaves, 'edges_step_label': yedges},
+                   'edges_E': Enots, 'edges_absorption': muaves, 'edges_step_label': yedges,
+                   # which edge each entry is (for labels and export; v3 did not show these)
+                   'edges_element': [str(s) for s in atomicsymbolsall],
+                   'edges_shell': [str(s) for s in atomicedgesymbolsall]},
         'k': {'x': kspace, 'y': y2, 'xlim': k_xlim,
               'edges_k': kspaceedges, 'edges_y': y3,
               'edge_labels': list(atomicedgesymbols), 'element_labels': list(atomicsymbols)},

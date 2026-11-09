@@ -190,3 +190,18 @@ def test_F7_panels_and_plot_errors_instead_of_crashes():
         assert pd["error"] and fragment in pd["error"], (lower, upper, pd["error"])
     pd = physics.plot_data(PT[0], "N/A", "11564.5", "0.38", "2.6", 81.98, 11564.5, "-200", "1000")
     assert pd["error"] is None and pd["fluorescence"]["xlim"] == [10764.5, 12364.5]
+
+
+def test_F7_plot_for_L1_L2_and_absent_element():
+    """v3 crashed plotting L1/L2 edges (no alpha-1 line) and elements absent from the sample.
+    The fluorescence panel now centres on the scanned edge's strongest line, else on E0."""
+    import xraydb
+    for edge, line in (("L1", "Lb3"), ("L2", "Lb1"), ("L3", "La1")):
+        r = physics.calculate_result("Pt", "Pt", edge, "0.38", "2.6")
+        pd = physics.plot_data("Pt", "Pt", edge, "0.38", "2.6", r["ms"], r["Enot"], "-200", "1000")
+        centre = xraydb.xray_lines("Pt", edge)[line].energy
+        assert pd["error"] is None and pd["fluorescence"]["xlim"] == [centre - 800, centre + 800]
+    r = physics.calculate_result("Al2O3", "Fe", "K", "0.38", "2.6")  # no Fe in the sample
+    pd = physics.plot_data("Al2O3", "Fe", "K", "0.38", "2.6", r["ms"], r["Enot"], "-200", "1000")
+    assert pd["fluorescence"]["xlim"] == [r["Enot"] - 800, r["Enot"] + 800]
+    assert pd["fluorescence"]["band"] is None
