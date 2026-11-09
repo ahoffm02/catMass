@@ -20,6 +20,27 @@ CHANGES = {
         "numbers_changed": False,
         "values": [],
     },
+    "F1": {
+        "finding": 1,
+        "approved": "researcher, 2026-11-08",
+        "title": "Beam-path panel: each row uses its own material",
+        "why": "v3 computed the Solvents row with the gas dropdown's material and the Metals row "
+               "with the solvent dropdown's (Calculatetransbeam / Calculateabsbeam_materials).",
+        "numbers_changed": True,
+        "values": [
+            # E0 = 7112 eV (Fe K), evaluated at E0 + 50 eV
+            # 0.1 cm water (v3 used air) / 1 mil aluminum (v3 used water)
+            {'case': 'G-materials-defaults', 'snapshot': 'transmitted', 'field': 'textboxP06', 'v3': '99.8%', 'new': '23.5%'},
+            {'case': 'G-materials-defaults', 'snapshot': 'transmitted', 'field': 'textboxP07', 'v3': '96.4%', 'new': '62.2%'},
+            {'case': 'G-materials-defaults', 'snapshot': 'final', 'field': 'textboxP06', 'v3': '0.0', 'new': '1.4'},
+            {'case': 'G-materials-defaults', 'snapshot': 'final', 'field': 'textboxP07', 'v3': '0.0', 'new': '0.5'},
+            # 500 um ethanol (v3 used helium) / 0.001 cm platinum (v3 used ethanol)
+            {'case': 'G-materials-units', 'snapshot': 'transmitted', 'field': 'textboxP06', 'v3': '100.0%', 'new': '70.1%'},
+            {'case': 'G-materials-units', 'snapshot': 'transmitted', 'field': 'textboxP07', 'v3': '99.3%', 'new': '0.4%'},
+            {'case': 'G-materials-units', 'snapshot': 'final', 'field': 'textboxP06', 'v3': '0.0', 'new': '0.4'},
+            {'case': 'G-materials-units', 'snapshot': 'final', 'field': 'textboxP07', 'v3': '0.0', 'new': '5.6'},
+        ],
+    },
 }
 
 

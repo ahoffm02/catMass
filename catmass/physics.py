@@ -1066,14 +1066,13 @@ def transmission_panel(Enot, gas, gas_thickness, gas_unit, material, material_th
 
     Enot: the E0 results box text (whole eV). Units: v3 combo indices (0 in, 1 mils, 2 cm,
     3 mm, 4 um). Returns {row: display text} for rows with a thickness.
-    Finding 1 (decision: fix, as a tracked change after parity): v3 computes the solvent row
-    with the *gas* material and the metal row with the *solvent* material. Preserved here;
-    `metal` is accepted but, as in v3, not used.
+    Change F1 (finding 1, approved 2026-11-08): each row uses its own material. v3 computed the
+    solvent row with the gas dropdown's material and the metal row with the solvent dropdown's.
     """
     Materialgases = gas
     Materialwall = material
-    Materialsolvent = gas      # v3: self.combo3 (gas dropdown), finding 1
-    Materialmetal = solvent    # v3: self.combo4 (solvent dropdown), finding 1
+    Materialsolvent = solvent  # v3: self.combo3 (gas dropdown); change F1
+    Materialmetal = metal      # v3: self.combo4 (solvent dropdown); change F1
     shown = {}
     rows = [('gas', gas_thickness, gas_unit, Materialgases),
             ('material', material_thickness, material_unit, Materialwall),

@@ -27,6 +27,7 @@ import pytest
 import xraydb
 
 from catmass import physics
+from tests.approved_changes import expected, override
 from tests.parity import assert_same, case_ids, golden
 
 REPO = Path(__file__).resolve().parents[1]
@@ -357,17 +358,24 @@ def test_beam_path_and_ion_chambers(case_id, monkeypatch):
                 t("combo2"), t("textbox_P03"), u("combo_U2"), t("combo4"), t("textbox_P04"),
                 u("combo_U4"), t("combo5"), t("textbox_P05"), u("combo_U5"),
                 absorbed=(mode == "absorbed"))
+            changed = False
             for row, box in (("gas", "textboxP04"), ("material", "textboxP05"),
                              ("solvent", "textboxP06"), ("metal", "textboxP07")):
-                assert_same(shown.get(row, ""), t(box), f"{snap['label']} {mode} {row}")
-            assert_last_calls(calls, g, snap, f"{snap['label']} {mode}")
+                changed |= override(case_id, snap["label"], box) is not None
+                assert_same(shown.get(row, ""), expected(case_id, snap["label"], box, t(box)),
+                            f"{snap['label']} {mode} {row}")
+            if not changed:  # an approved change alters the calls; its values are checked
+                assert_last_calls(calls, g, snap, f"{snap['label']} {mode}")  # independently
         if touched_ic:
             calls.clear()
             ic = physics.ion_chamber_absorbed(t("textbox9"), t("combo6"), t("combo7"),
                                               mw["slider"]["value"], mw["slider2"]["value"],
                                               t("combo_C1"), t("textboxP12"))
-            assert_same("" if ic is None else ic, t("textboxP11"), f"{snap['label']} IC")
-            assert_last_calls(calls, g, snap, f"{snap['label']} IC")
+            assert_same("" if ic is None else ic,
+                        expected(case_id, snap["label"], "textboxP11", t("textboxP11")),
+                        f"{snap['label']} IC")
+            if override(case_id, snap["label"], "textboxP11") is None:
+                assert_last_calls(calls, g, snap, f"{snap['label']} IC")
         else:
             assert t("textboxP11") == "", "v3 computed the ion chamber without a control change"
 

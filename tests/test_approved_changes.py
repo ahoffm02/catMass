@@ -5,11 +5,34 @@ catmass.physics (Software Standard 4), or, for changes that must not move any nu
 result is shown to be identical to v3's behavior.
 """
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
 
+import xraydb
+
+from tests.approved_changes import CHANGES
+from tests.parity import golden
+
 REPO = Path(__file__).resolve().parents[1]
+CM_PER_UNIT = {"in": 2.54, "mils": 2.54e-3, "cm": 1.0, "mm": 0.1, "μm": 1e-4}
+
+
+def test_F1_rows_use_their_own_material():
+    """Each new value = Beer-Lambert with the row's own material at E0 + 50 eV, via xraydb."""
+    row_of = {"textboxP06": ("combo4", "textbox_P04", "combo_U4"),   # solvent row
+              "textboxP07": ("combo5", "textbox_P05", "combo_U5")}   # metal row
+    for v in CHANGES["F1"]["values"]:
+        snap = next(s for s in golden(v["case"])["snapshots"] if s["label"] == v["snapshot"])
+        mw = snap["main_window"]
+        material, thickness, unit = (mw[w] for w in row_of[v["field"]])
+        t_cm = float(thickness["text"]) * CM_PER_UNIT[unit["text"]]
+        mux = t_cm * xraydb.material_mu(material["text"], float(mw["textbox9"]["text"]) + 50)
+        if v["new"].endswith("%"):
+            assert math.isclose(float(v["new"][:-1]), 100 * math.exp(-mux), abs_tol=0.05), v
+        else:
+            assert math.isclose(float(v["new"]), mux, abs_tol=0.05), v
 
 V3_REGISTRATION = """
 import xraydb
