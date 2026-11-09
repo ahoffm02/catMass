@@ -146,6 +146,7 @@ def test_F7_builder_and_dilution_errors_instead_of_crashes():
         (physics.build_metal_sample, ("Pt", "abc", "", "", "SiO2"), "'abc' is not a number"),
         (physics.build_metal_sample, ("Pt", "100", "", "", "SiO2"), "must be less than 100"),
         (physics.build_metal_sample, ("Pt", "60", "Sn", "50", "SiO2"), "add up to 110 wt%"),
+        (physics.build_metal_sample, ("Pt", "50", "Sn", "50", "SiO2"), "add up to 100 wt%"),
         (physics.build_complex_sample, ("SiO2", "Si(CH3)4Pt", "", "1", "S"),
          "Metal Center not in Complex"),
         (physics.build_complex_sample, ("SiO2", "Rh(CO)2(C5H7O2)", "", "50", "Rh"),
