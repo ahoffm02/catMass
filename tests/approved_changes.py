@@ -41,6 +41,25 @@ CHANGES = {
             {'case': 'G-materials-units', 'snapshot': 'final', 'field': 'textboxP07', 'v3': '0.0', 'new': '5.6'},
         ],
     },
+    "F2": {
+        "finding": 2,
+        "approved": "researcher, 2026-11-08 (fix if partial densities are correct; confirmed "
+                    "against xraydb.ionchamber_fluxes)",
+        "title": "Ion chambers: each gas at its own partial density",
+        "why": "v3 applied the mixture's average density to each gas's mu/rho, under-counting "
+               "the denser gas in a mix. Exact only for a single gas.",
+        "numbers_changed": True,
+        "values": [
+            # % beam absorbed at E0 = 7112 eV (Fe K)
+            {'case': 'G-IC-10cm-He-N2-50', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '3.89', 'new': '6.55'},
+            # single gas: value unchanged, listed because the underlying calls changed
+            {'case': 'G-IC-15cm-N2-100', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '18.32', 'new': '18.32'},
+            {'case': 'G-IC-30cm-Ar20-N2', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '81.38', 'new': '87.40'},
+            {'case': 'G-IC-45cm-Ar-He-50', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '97.30', 'new': '99.86'},
+            {'case': 'G-IC-60cm-N2-30-He-1500torr', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '18.57', 'new': '38.38'},
+            {'case': 'G-IC-other-20cm', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '92.87', 'new': '95.25'},
+        ],
+    },
 }
 
 

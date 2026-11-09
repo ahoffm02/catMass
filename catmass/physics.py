@@ -1097,20 +1097,25 @@ def ion_chamber_absorbed(Enot, gas1, gas2, gas1_slider, pressure_torr, length, o
     (gas 1 fraction = -value/100). pressure_torr: total pressure slider. length: '10', '15',
     '30', '45', '60' [cm] or 'Other', with other_length the typed length (blank: v3 leaves the
     box unchanged, returned as None).
-    Finding 2 (decision: fix, as a tracked change after parity): the mixture density is
-    applied to each gas instead of each gas's partial density. Preserved here.
+    Change F2 (finding 2, approved 2026-11-08): each gas is taken at its own partial density,
+    mole fraction x density at 1 atm x P/760 (ideal gas), as xraydb's ionchamber_fluxes mixes
+    gases. v3 applied the mixture's average density to both gases (via ionchamberdensity), which
+    is exact only for a single gas and under-counts the denser gas in a mix.
+    Assumption (HC16, as in v3): the slider fraction is a mole (pressure) fraction.
     """
     if Enot=='':
         return "Error"
-    ionchamberdensityy = ionchamberdensity(pressure_torr,gas1,gas2,-gas1_slider/100)
     if length == 'Other':
         if other_length =='':
             return None
         L = other_length
     else:
         L = length
-    ionchambergas1 =  -gas1_slider/100*float(L)*xraydb.material_mu(gas1,float(Enot),density=ionchamberdensityy)
-    ionchambergas2 =  (100+gas1_slider)/100*float(L)*xraydb.material_mu(gas2,float(Enot),density=ionchamberdensityy)
+    pressure_scale = pressure_torr/760
+    density1 = xraydb.get_material(gas1)[1]*pressure_scale
+    density2 = xraydb.get_material(gas2)[1]*pressure_scale
+    ionchambergas1 =  -gas1_slider/100*float(L)*xraydb.material_mu(gas1,float(Enot),density=density1)
+    ionchambergas2 =  (100+gas1_slider)/100*float(L)*xraydb.material_mu(gas2,float(Enot),density=density2)
     transionchamber = np.exp(-(ionchambergas1+ionchambergas2))*100
     return '{0:0.2f}'.format(100-transionchamber)
 

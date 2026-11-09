@@ -34,6 +34,25 @@ def test_F1_rows_use_their_own_material():
         else:
             assert math.isclose(float(v["new"]), mux, abs_tol=0.05), v
 
+def test_F2_matches_xraydb_ionchamber_fluxes():
+    """Each new value = 100 x (1 - transmitted/incident) from xraydb.ionchamber_fluxes, an
+    independent implementation of gas-mix attenuation. It assumes 1 atm; mu scales linearly with
+    density, so pressure P enters as an effective length L x P/760."""
+    for v in CHANGES["F2"]["values"]:
+        mw = next(s for s in golden(v["case"])["snapshots"]
+                  if s["label"] == v["snapshot"])["main_window"]
+        x1 = -mw["slider"]["value"] / 100
+        gas1, gas2 = mw["combo6"]["text"], mw["combo7"]["text"]
+        gas = {gas1: x1} if gas1 == gas2 else {gas1: x1, gas2: 1 - x1}
+        gas = {k: f for k, f in gas.items() if f > 0}
+        length = float(mw["textboxP12"]["text"] if mw["combo_C1"]["text"] == "Other"
+                       else mw["combo_C1"]["text"])
+        flux = xraydb.ionchamber_fluxes(gas=gas, length=length * mw["slider2"]["value"] / 760,
+                                        energy=float(mw["textbox9"]["text"]))
+        absorbed = 100 * (1 - flux.transmitted / flux.incident)
+        assert math.isclose(float(v["new"]), absorbed, abs_tol=0.005), (v, absorbed)
+
+
 V3_REGISTRATION = """
 import xraydb
 xraydb.add_material('PEEK', 'C19H14O3', 1.32, categories=['polymer'])
