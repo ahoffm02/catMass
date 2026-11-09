@@ -1181,10 +1181,11 @@ def build_complex_sample(Support, Complex, Complex_Loading, Metal_Loading, Metal
 # are left to v3's own messages (and to the UI defaults agreed for Release 1). Valid input reaches
 # the v3 functions unchanged, so every golden value still holds.
 
-# Assumption (HC16, unconfirmed): lowest edge or "Other" energy accepted. v3 evaluates down to
-# E0 - 430 eV in its retry loop, and xraylib rejects energies <= 0, so lower energies crash v3.
-# The researcher uses catMass for edges of about 2 keV and up.
-MIN_EDGE_ENERGY_EV = 500
+# Lowest edge or "Other" energy accepted (researcher decision 2026-11-08): 2000 eV, which still
+# covers S K (2472 eV). Below that nearly everything absorbs too strongly for this calculation
+# to be useful. v3 accepted lower energies, and crashed below about 430 eV (its retry loop
+# evaluates down to E0 - 430 eV; xraylib rejects energies <= 0).
+MIN_EDGE_ENERGY_EV = 2000
 
 EDGE_SHELLS = {'K': 0, 'L1': 1, 'L2': 2, 'L3': 3}
 

@@ -115,9 +115,13 @@ BAD_CALCULATIONS = [
     (("Al2O3", "Xx", "K", "0.38", "2.6"), "'Xx' is not an element symbol"),
     (("Fe2O3", "fe", "K", "0.38", "2.6"), "'fe' is not an element symbol"),
     (("H2O", "H", "L3", "0.38", "2.6"), "H has no L3 edge"),
-    (("Al2O3", "O", "L3", "0.38", "2.6"), "below the 500 eV minimum"),
+    (("Al2O3", "O", "L3", "0.38", "2.6"), "below the 2000 eV minimum"),
+    # v3 computed these; below the 2000 eV minimum (researcher decision 2026-11-08)
+    (("SiO2", "Si", "K", "0.38", "2.6"), "Si K edge (1839 eV) is below the 2000 eV minimum"),
+    (("Al2O3", "Al", "K", "0.38", "2.6"), "Al K edge (1560 eV) is below the 2000 eV minimum"),
+    (("Al2O3", "N/A", "1999", "0.38", "2.6"), "must be at least 2000 eV"),
     (("Al2O3", "N/A", "abc", "0.38", "2.6"), "'abc' is not a number"),
-    (("Al2O3", "N/A", "100", "0.38", "2.6"), "must be at least 500 eV"),
+    (("Al2O3", "N/A", "100", "0.38", "2.6"), "must be at least 2000 eV"),
     (PT[:3] + ("abc", "2.6"), "Sample area 'abc' is not a number"),
     (PT[:3] + ("0", "2.6"), "Sample area must be greater than 0"),
     (PT[:3] + ("-0.38", "2.6"), "Sample area must be greater than 0"),
@@ -127,6 +131,13 @@ BAD_CALCULATIONS = [
     (PT + ("1", "-9"), "Diluent ratio must be at least 0"),
     (PT + ("1", "x"), "Diluent ratio 'x' is not a number"),
 ]
+
+
+def test_F7_minimum_energy_boundary():
+    """2000 eV is accepted; S K (2472 eV), the lowest edge in use, still calculates."""
+    assert physics.calculation_input_error("Al2O3", "N/A", "2000", "0.38", "2.6") is None
+    r = physics.calculate_result("ZnS", "S", "K", "0.38", "2.6")
+    assert r["Result"] == "None" and r["Enot"] > 2000 and r["ms"] > 0
 
 
 def test_F7_calculation_errors_instead_of_crashes():

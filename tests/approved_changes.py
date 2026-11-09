@@ -68,6 +68,9 @@ CHANGES = {
                "edges, non-numeric or out-of-range numbers, loadings over 100 wt%, and an 'Other' "
                "energy with a decimal when plotting (int() of the energy text).",
         "numbers_changed": False,  # valid input is unchanged; only former crashes change
+        "minimum_energy": "2000 eV for edges and 'Other' energies (researcher, 2026-11-08). "
+                          "Rejects inputs v3 computed between ~430 and 2000 eV (e.g. Si K, Al K); "
+                          "no golden case lies in that range.",
         "values": [
             {'case': 'H-bad-formula', 'snapshot': 'final', 'field': 'dilute_sample', 'v3': ['None', 'al2o3'], 'new': ["ERROR - Sample 'al2o3' is not a valid chemical formula (Found a lowercase character or digit where not allowed). Element symbols are case-sensitive, e.g. Al2O3", '']},
             {'case': 'H-bad-formula', 'snapshot': 'final', 'field': 'calculate_result raises', 'v3': 'ValueError: Invalid chemical formula: Found a lowercase character or digit where not allowed', 'new': None},
