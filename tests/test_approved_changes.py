@@ -121,6 +121,7 @@ BAD_CALCULATIONS = [
     (("Al2O3", "Al", "K", "0.38", "2.6"), "Al K edge (1560 eV) is below the 2000 eV minimum"),
     (("Al2O3", "N/A", "1999", "0.38", "2.6"), "must be at least 2000 eV"),
     (("Al2O3", "N/A", "abc", "0.38", "2.6"), "'abc' is not a number"),
+    (("Al2O3", "N/A", "", "0.38", "2.6"), "Energy to calculate sample mass not Defined"),
     (("Al2O3", "N/A", "100", "0.38", "2.6"), "must be at least 2000 eV"),
     (PT[:3] + ("abc", "2.6"), "Sample area 'abc' is not a number"),
     (PT[:3] + ("0", "2.6"), "Sample area must be greater than 0"),
