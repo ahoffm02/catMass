@@ -3,7 +3,8 @@
 Ported from `legacy/catMass_2023v3_singlefile_EXE-REFERENCE.py` (parity-rebuild Stage 4).
 This is a structure-only port. Formulas, constants, units, defaults, string formats and error
 messages are unchanged, including the known v3 defects (vault plan, "Findings from golden
-generation"). Those are fixed later, each as its own tracked change with a golden-file update.
+generation"), except for the approved changes listed in tests/approved_changes.py. Each change
+is its own commit, marked "Change F<n>" where it acts.
 
 Layout:
 1. Custom materials v3 registers with xraydb at launch.
@@ -24,32 +25,51 @@ import os
 import numpy as np
 import xraydb
 import xraylib
+from xraydb import materials as _xraydb_materials
 
 
 # =============================================================================================
 # 1. Custom materials (reference lines 49-62)
 # =============================================================================================
-def register_custom_materials():
-    """Register v3's five extra materials with xraydb, exactly as v3 does at launch.
+def add_material_in_memory(name, formula, density, categories=None):
+    """Add a material to xraydb's table for this session only.
 
-    Finding 11 (pending decision): xraydb.add_material also appends each entry to the user's
-    materials file (xraydb/materials.dat in the user config folder) on every call. Preserved
-    for parity; the values are identical, so duplicates do not change any number.
+    Change F11 (finding 11, approved by the researcher 2026-11-08): v3 used xraydb.add_material,
+    which also rewrites the user's materials file (xraydb/materials.dat in the user config
+    folder) on every call, so each launch appended duplicate lines. This does the same in-memory
+    steps as xraydb 4.5.4's add_material and skips the file write. Every material, value and
+    list order is unchanged (tests/test_approved_changes.py).
+    Assumption (HC16): relies on xraydb's internal table (materials._materials,
+    _read_materials_db, Material), which is fixed by the pinned xraydb version.
+    """
+    if _xraydb_materials._materials is None:
+        _xraydb_materials._materials = _xraydb_materials._read_materials_db()
+    formula = formula.replace(' ', '')
+    if categories is None:
+        categories = []
+    _xraydb_materials._materials[name.lower()] = _xraydb_materials.Material(
+        formula, float(density), name, categories)
+
+
+def register_custom_materials():
+    """Register v3's five extra materials with xraydb, with v3's names and values.
+
+    v3 called xraydb.add_material; this uses add_material_in_memory (change F11).
     """
     ## PEEK material added to database gm/cm^3
-    xraydb.add_material('PEEK', 'C19H14O3', 1.32, categories=['polymer'])
+    add_material_in_memory('PEEK', 'C19H14O3', 1.32, categories=['polymer'])
     ## glassy carbon material added to database
-    xraydb.add_material('Glossy Carbon', 'C', 1.5, categories=['polymer'])
+    add_material_in_memory('Glossy Carbon', 'C', 1.5, categories=['polymer'])
 
     ## Kanthal A-1 Wire material added to database
     #https://www.kanthal.com/en/products/material-datasheets/strip/kanthal-a-1/#:~:text=Kanthal%C2%AE%20A%2D1%20is,and%20very%20good%20oxidation%20resistance.
-    xraydb.add_material('Kanthal A-1', 'Cr1.83AlFe6.139', 7.1, categories=['polymer'])
+    add_material_in_memory('Kanthal A-1', 'Cr1.83AlFe6.139', 7.1, categories=['polymer'])
 
     ## NiCr Wire material added to database
-    xraydb.add_material('Nichrome', 'CrNi3.544', 8.4, categories=['polymer'])
+    add_material_in_memory('Nichrome', 'CrNi3.544', 8.4, categories=['polymer'])
 
     ## NiCr Wire material added to database
-    xraydb.add_material('Carbon Fiber', 'C3HN', 1.184, categories=['polymer'])
+    add_material_in_memory('Carbon Fiber', 'C3HN', 1.184, categories=['polymer'])
 
 
 register_custom_materials()
