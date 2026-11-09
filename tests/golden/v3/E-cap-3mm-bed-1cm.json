@@ -1,0 +1,537 @@
+{
+ "schema": "catmass-golden/1",
+ "generator_version": "1",
+ "case": {
+  "id": "E-cap-3mm-bed-1cm",
+  "group": "E",
+  "description": "1 wt% Pt/Al2O3, capillary 3 mm, bed 1 cm",
+  "steps": [
+   ["click", "button_dil00"],
+   ["dtype", "textbox_tab101", "Al2O3"],
+   ["dtype", "textbox_tab102", "Pt"],
+   ["dtype", "textbox_tab103", "1"],
+   ["dclick", "button_tab1_01"],
+   ["type", "textbox2", "Pt"],
+   ["select", "combo", "L3"],
+   ["click", "radioButton1"],
+   ["select", "combo_cap", "3"],
+   ["type", "textbox13", "1"],
+   ["click", "button_Input02"]
+  ]
+ },
+ "reference": {
+  "file": "legacy/catMass_2023v3_singlefile_EXE-REFERENCE.py",
+  "sha256": "a33973bbf9e03a22b67be977a60e1cb554ef8afeca91df3d36752f14de07010c",
+  "glitch_files_sha256": {
+   "si2209093.txt": "14096b12bd56b05bd507f21a52c2f98515a9bb629d496d26fbbd320245a7b147",
+   "si220093.txt": "d8e81a3b1ff636eba501af12e35fdc8f6af13c72fc482c85b567d0c952b504ef",
+   "si1119043.txt": "cbd8d351c2c81d076f668b4d9ed19a569fea13cb6edc964d7b9b083204db6939",
+   "si111043.txt": "1cd78c8ed968da045c58474b53df15dbc275ca9eac7e936dbb3755bb75b1fdb6"
+  }
+ },
+ "environment": {
+  "python": "3.9.23",
+  "platform": "Windows-10-10.0.26200-SP0",
+  "xraylib": "4.1.1",
+  "xraydb": "4.5.4",
+  "xraydb_database": "XrayDB Version: 9.2, Python Version: 4.5.4",
+  "xraydb_sqlite_sha256": "fd58bcc4213e3a7c6ecd32d1d8dfd7f4c74526ca468a3df62cce99afeb5ff5bf",
+  "numpy": "1.26.4",
+  "matplotlib": "3.5.2",
+  "matplotlib_backend": "Qt5Agg",
+  "qt": "5.15.15",
+  "pyqt": "5.15.11",
+  "qt_platform": "offscreen",
+  "screen_available": [800, 600]
+ },
+ "value_kind": "computed (v3 reference calculation), not measured",
+ "snapshots": [
+  {
+   "label": "final",
+   "main_window": {
+    "b1": {
+     "checked": false,
+     "text": "Show Plot",
+     "hidden": false,
+     "enabled": true
+    },
+    "b2": {
+     "checked": false,
+     "text": "Sample at 45°",
+     "hidden": false,
+     "enabled": true
+    },
+    "b3": {
+     "checked": false,
+     "text": "X-ray transmission through media",
+     "hidden": false,
+     "enabled": true
+    },
+    "combo": {
+     "index": 3,
+     "text": "L3",
+     "hidden": false,
+     "enabled": true
+    },
+    "combo_cap": {
+     "index": 2,
+     "text": "3",
+     "hidden": false,
+     "enabled": true
+    },
+    "combo_pel": {
+     "index": 1,
+     "text": "7",
+     "hidden": false,
+     "enabled": false
+    },
+    "label0": {
+     "text": "Edge Scan and Absorption Properties Definition",
+     "hidden": false
+    },
+    "label1": {
+     "text": "Diluted Sample Chemical Formula:",
+     "hidden": false
+    },
+    "label10": {
+     "text": "Edge Energy [eV]:",
+     "hidden": false
+    },
+    "label12": {
+     "text": "Energy to Calculate Sample Mass [eV]:",
+     "hidden": true
+    },
+    "label13": {
+     "text": "Sample Area ⊥ to Beam [cm<sup>2</sup>]:",
+     "hidden": false
+    },
+    "label14": {
+     "text": "Catalyst Sample Absorption at E0 + 50 eV:",
+     "hidden": false
+    },
+    "label17": {
+     "text": "Lower Limit of μ Average Plot:",
+     "hidden": true
+    },
+    "label18": {
+     "text": "Upper Limit of μ Average Plot:",
+     "hidden": true
+    },
+    "label2": {
+     "text": "Element to be Scanned:",
+     "hidden": false
+    },
+    "label3": {
+     "text": "Edge to be Scanned:",
+     "hidden": false
+    },
+    "label4": {
+     "text": "Catalyst Sample Absorption at E0 + 50 eV:",
+     "hidden": true
+    },
+    "label5": {
+     "text": "Sample Area ⊥ to Beam [cm<sup>2</sup>]:",
+     "hidden": true
+    },
+    "label6": {
+     "text": "Diluted Sample Mass [mg]:",
+     "hidden": false
+    },
+    "label7": {
+     "text": "Estimated Edge Step:",
+     "hidden": false
+    },
+    "label8": {
+     "text": "Sample Mass [mg]:",
+     "hidden": false
+    },
+    "label9": {
+     "text": "Diluent Mass [mg]:",
+     "hidden": false
+    },
+    "label_Result01": {
+     "text": "Results",
+     "hidden": false
+    },
+    "label_dil00": {
+     "text": "Sample and Dilution Definition",
+     "hidden": false
+    },
+    "label_dil01": {
+     "text": "Sample",
+     "hidden": false
+    },
+    "label_dil02": {
+     "text": "Diluent",
+     "hidden": false
+    },
+    "label_dil03": {
+     "text": "Stoichiometry:",
+     "hidden": false
+    },
+    "label_dil04": {
+     "text": "Mass Dilution Ratio:",
+     "hidden": false
+    },
+    "label_dil06": {
+     "text": "",
+     "hidden": false
+    },
+    "label_dil07": {
+     "text": "<a href=https://drive.google.com/drive/folders/1cn_cJd070a3L08fOBYLkGOVSRvuPCsi7>There is a New Version of CatMass Available Online!</a>",
+     "hidden": false
+    },
+    "radioButton1": {
+     "checked": true,
+     "text": "Capillary Diameter [mm]",
+     "hidden": false,
+     "enabled": true
+    },
+    "radioButton2": {
+     "checked": false,
+     "text": "Pellet Diameter [mm]",
+     "hidden": false,
+     "enabled": true
+    },
+    "radioButton3": {
+     "checked": false,
+     "text": "Other",
+     "hidden": false,
+     "enabled": true
+    },
+    "slider_deg": {
+     "value": 45,
+     "hidden": true
+    },
+    "textbox1": {
+     "text": "O568.390524Al378.927016Pt1.000000",
+     "style": "background-color:rgb(224,224,224)",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox11": {
+     "text": "-200",
+     "style": "",
+     "hidden": true,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox12": {
+     "text": "1000",
+     "style": "",
+     "hidden": true,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox13": {
+     "text": "1",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox14": {
+     "text": "",
+     "style": "",
+     "hidden": true,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox15": {
+     "text": "2.6",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox16": {
+     "text": "0.30",
+     "style": "",
+     "hidden": false,
+     "enabled": false,
+     "readonly": true
+    },
+    "textbox2": {
+     "text": "Pt",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox3": {
+     "text": "2.6",
+     "style": "",
+     "hidden": true,
+     "enabled": false,
+     "readonly": true
+    },
+    "textbox4": {
+     "text": "0.30",
+     "style": "",
+     "hidden": true,
+     "enabled": false,
+     "readonly": false
+    },
+    "textbox5": {
+     "text": "64.71",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox6": {
+     "text": "0.1858",
+     "style": "background-color:rgb(255,255,255)",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox7": {
+     "text": "64.71",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox8": {
+     "text": "0.00",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox9": {
+     "text": "11564",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    },
+    "textbox_Xray_05": {
+     "text": "None",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil01": {
+     "text": "O568.390524Al378.927016Pt1.000000",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil02": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil03": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil04": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil05": {
+     "text": "None",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_dil06": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": true
+    }
+   },
+   "sample_builder": {
+    "open": false,
+    "label_tab1_01": {
+     "text": "Support:",
+     "hidden": false
+    },
+    "label_tab1_02": {
+     "text": "Metal Site #1 [e.g. Pt, PtO2, Pt1Sn3]:",
+     "hidden": false
+    },
+    "label_tab1_03": {
+     "text": "Metal Site #1 Loading [wt%]:",
+     "hidden": false
+    },
+    "label_tab1_04": {
+     "text": "Metal Site #2 [e.g. Pt, PtO2, Pt1Sn3]:",
+     "hidden": false
+    },
+    "label_tab1_05": {
+     "text": "Metal Site #2 Loading [wt%]:",
+     "hidden": false
+    },
+    "label_tab1_06": {
+     "text": "Note: wt% must reflect the entire metal site.",
+     "hidden": false
+    },
+    "label_tab1_07": {
+     "text": "Note: Metal Site 2 is an optional field.",
+     "hidden": false
+    },
+    "label_tab2_01": {
+     "text": "Support:",
+     "hidden": false
+    },
+    "label_tab2_02": {
+     "text": "Metal Complex:",
+     "hidden": false
+    },
+    "label_tab2_03": {
+     "text": "Complex Loading [wt%]:",
+     "hidden": false
+    },
+    "label_tab2_04": {
+     "text": "Metal Loading [wt%]:",
+     "hidden": false
+    },
+    "label_tab2_05": {
+     "text": "Metal Center:",
+     "hidden": false
+    },
+    "label_tab2_06": {
+     "text": "Note: for metal oxides or organometallic complexes",
+     "hidden": false
+    },
+    "label_tab2_07": {
+     "text": "Note: only define complex loading OR metal loading",
+     "hidden": false
+    },
+    "textbox_tab101": {
+     "text": "Al2O3",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab102": {
+     "text": "Pt",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab103": {
+     "text": "1",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab104": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab105": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab106": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_01": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_02": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_03": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_04": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_05": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    },
+    "textbox_tab2_06": {
+     "text": "",
+     "style": "",
+     "hidden": false,
+     "enabled": true,
+     "readonly": false
+    }
+   },
+   "module_state": {
+    "angleconstants": [null, null, "0.54", 11.0],
+    "calculateresult_num": 2,
+    "samplesaver": [null, "Al2O3", "Pt", "1", "", ""],
+    "complexsaver": [null, null, null, null, null, null]
+   },
+   "figures": [],
+   "exceptions_so_far": 0
+  }
+ ],
+ "physics_calls": [
+  {
+   "fn": "metalCalculateSample",
+   "args": ["Pt", "1", "", "", "Al2O3"],
+   "kwargs": {},
+   "result": "O568.390524Al378.927016Pt1.000000"
+  },
+  {
+   "fn": "XASStoichCalc",
+   "args": ["O568.390524Al378.927016Pt1.000000", "", "", ""],
+   "kwargs": {},
+   "result": ["None", "O568.390524Al378.927016Pt1.000000"]
+  },
+  {
+   "fn": "XASMassCalc",
+   "args": ["O568.390524Al378.927016Pt1.000000", "Pt", "L3", "0.30", "2.6"],
+   "kwargs": {},
+   "result": ["None", 11563.800000000001, 64.71277376371597, 0.18578404364266604, 12.05326173852466]
+  }
+ ],
+ "call_counts": {},
+ "exceptions": [],
+ "v3_would_terminate": false
+}
