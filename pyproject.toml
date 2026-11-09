@@ -34,11 +34,12 @@ catmass = "catmass.app:main"
 [project.urls]
 Source = "https://github.com/ahoffm02/catMass"
 
-[tool.setuptools]
-packages = ["catmass"]
+[tool.setuptools.packages.find]
+include = ["catmass*"]  # catmass and its data folders (assets, data/glitch)
 
 [tool.setuptools.package-data]
-catmass = ["data/glitch/*.txt", "data/glitch/README.md", "assets/*"]
+"catmass.assets" = ["*"]
+"catmass.data.glitch" = ["*.txt", "README.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
