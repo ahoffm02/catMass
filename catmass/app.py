@@ -1,0 +1,562 @@
+"""catMass browser app (NiceGUI). Run with `catmass` or `python -m catmass`.
+
+Display only: every rule and number comes from catmass.calculator (and through it the physics
+core). Tabs agreed 2026-11-08: Calculator | Sample Builder | Plots | Beam path & ion chambers |
+About. Runs locally; the only network call is the optional "Check for updates" button.
+"""
+from __future__ import annotations
+
+import inspect
+import json
+import socket
+import urllib.error
+import urllib.request
+from dataclasses import fields, is_dataclass
+from pathlib import Path
+
+from nicegui import run, ui
+
+from catmass import __version__
+from catmass import calculator as calc
+from catmass import physics, savefile
+
+ASSETS = Path(__file__).parent / 'assets'
+REPO_URL = 'https://github.com/ahoffm02/catMass'
+RELEASES_API = 'https://api.github.com/repos/ahoffm02/catMass/releases/latest'
+# Verified via Crossref, 2026-11-08 (Hard Constraint 6)
+PAPER = ('J. E. Perez-Aguilar, A. Caine, S. R. Bare, A. S. Hoffman, "CatMass: software for '
+         'calculating optimal sample masses for X-ray absorption spectroscopy experiments '
+         'involving complex sample compositions", J. Synchrotron Rad. 30(5), 1023-1029 (2023).')
+PAPER_DOI = 'https://doi.org/10.1107/S160057752300615X'
+WIDE = 'w-full max-w-4xl'
+
+
+def copy_into(target, source):
+    """Copy dataclass values in place, so widgets bound to `target` see the new values."""
+    for f in fields(target):
+        value = getattr(source, f.name)
+        current = getattr(target, f.name)
+        if is_dataclass(current):
+            copy_into(current, value)
+        elif isinstance(current, dict):
+            for k in current:
+                copy_into(current[k], value[k])
+        else:
+            setattr(target, f.name, value)
+
+
+def free_port(preferred=8080):
+    """The preferred port if free, else any free port (several catMass windows can run)."""
+    for port in (preferred, 0):
+        with socket.socket() as s:
+            try:
+                s.bind(('127.0.0.1', port))
+                return s.getsockname()[1]
+            except OSError:
+                continue
+    raise RuntimeError('no free port')
+
+
+def latest_release():
+    """Tag of the newest GitHub release, or None if there is none. Raises when offline."""
+    request = urllib.request.Request(RELEASES_API, headers={'Accept': 'application/vnd.github+json'})
+    try:
+        with urllib.request.urlopen(request, timeout=3) as response:
+            return json.load(response).get('tag_name')
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return None
+        raise
+
+
+class CatMassPage:
+    """One browser tab's state and widgets."""
+
+    def __init__(self):
+        self.s = savefile.Session()
+        self.result = None          # last calc.Calculation
+        self.beam_result = None     # last beam-path {row: text}
+        self.ic_result = None       # last ion-chamber text
+        self.stale = False
+        self.dark = ui.dark_mode(False)
+        self.glitch_shown = {f: shown for f, _, shown in physics.GLITCH_LIBRARY}
+        self.materials = calc.material_options()
+        self.build()
+
+    # --- layout --------------------------------------------------------------------------
+    def build(self):
+        with ui.header(elevated=True).classes('items-center justify-between'):
+            with ui.row().classes('items-center gap-2'):
+                ui.label('catMass').classes('text-h5')
+                ui.label(f'XAS sample calculator · {__version__}').classes('text-caption')
+            with ui.row().classes('items-center'):
+                ui.button('Open', icon='folder_open', on_click=self.open_dialog).props('flat color=white')
+                ui.button('Save', icon='save', on_click=self.save).props('flat color=white')
+                ui.switch('Dark', on_change=self.set_dark).props(
+                    'color=white keep-color').mark('dark')
+        with ui.tabs().classes('w-full') as self.tabs:
+            self.t_calc = ui.tab('Calculator', icon='calculate')
+            self.t_builder = ui.tab('Sample Builder', icon='science')
+            self.t_plots = ui.tab('Plots', icon='show_chart')
+            self.t_beam = ui.tab('Beam path & ion chambers', icon='straighten')
+            self.t_about = ui.tab('About', icon='info')
+        with ui.tab_panels(self.tabs, value=self.t_calc).classes('w-full'):
+            with ui.tab_panel(self.t_calc).classes('items-center'):
+                self.build_calculator()
+            with ui.tab_panel(self.t_builder).classes('items-center'):
+                self.build_builder()
+            with ui.tab_panel(self.t_plots).classes('items-center'):
+                self.plots = ui.column().classes(WIDE)
+                self.render_plots()
+            with ui.tab_panel(self.t_beam).classes('items-center'):
+                self.build_beam_path()
+            with ui.tab_panel(self.t_about).classes('items-center'):
+                self.build_about()
+        with ui.footer().classes('items-center justify-center bg-transparent'):
+            ui.image(ASSETS / 'SSRL_logo_2021.png').classes('h-6 w-auto').props('fit=contain alt="SSRL"')
+            ui.image(ASSETS / 'co_access_logo_text.png').classes('h-6 w-auto').props(
+                'fit=contain alt="Co-ACCESS"')
+
+    def text_input(self, obj, attr, label, placeholder='', marker=None, track=True, **kwargs):
+        """Text field bound to a dataclass attribute; `track` marks results out of date."""
+        field = ui.input(label, placeholder=placeholder,
+                         on_change=self.inputs_changed if track else None,
+                         **kwargs).bind_value(obj, attr).classes('min-w-[12rem] grow')
+        if marker:
+            field.mark(marker)
+        return field
+
+    def build_calculator(self):
+        c = self.s.calculator
+        with ui.card().classes(WIDE):
+            ui.label('Sample and dilution').classes('text-h6')
+            with ui.row().classes('w-full items-center'):
+                self.text_input(c.sample, 'formula', 'Sample formula',
+                                'e.g. Pt0.01Al2O3, or use the Sample Builder', 'formula')
+                ui.button('Sample Builder', icon='science',
+                          on_click=lambda: self.tabs.set_value(self.t_builder)).props('outline')
+            with ui.row().classes('w-full'):
+                self.text_input(c.sample, 'diluent', 'Diluent formula', 'blank = no dilution',
+                                'diluent')
+                self.text_input(c.sample, 'sample_ratio', 'Sample mass ratio', 'e.g. 1',
+                                'sample_ratio')
+                self.text_input(c.sample, 'diluent_ratio', 'Diluent mass ratio', 'e.g. 9',
+                                'diluent_ratio')
+        with ui.card().classes(WIDE):
+            ui.label('Edge').classes('text-h6')
+            with ui.row().classes('w-full items-center'):
+                ui.select(calc.EDGES, label='Edge', on_change=self.inputs_changed).bind_value(
+                    c.scan, 'edge').classes('min-w-[8rem]').mark('edge')
+                self.text_input(c.scan, 'element', 'Element to be scanned', 'e.g. Pt',
+                                'element').bind_visibility_from(c.scan, 'edge',
+                                                                backward=lambda e: e != 'Other')
+                self.text_input(c.scan, 'other_energy_eV', 'Energy for mass and edge step [eV]',
+                                'required for "Other"', 'other_energy').bind_visibility_from(
+                    c.scan, 'edge', value='Other')
+        with ui.card().classes(WIDE):
+            ui.label('Sample holder and absorption').classes('text-h6')
+            ui.radio(calc.HOLDERS, on_change=self.holder_changed).bind_value(
+                c.holder, 'holder').props('inline').mark('holder')
+            with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder', value='pellet'):
+                self.text_input(c.holder, 'pellet_mm', 'Pellet diameter [mm]',
+                                f'{calc.DEFAULT_PELLET_MM} (default)', 'pellet_mm',
+                                autocomplete=calc.PELLET_DIAMETERS_MM)
+            with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder',
+                                                                 value='capillary'):
+                self.text_input(c.holder, 'capillary_mm', 'Capillary inner diameter [mm]',
+                                f'{calc.DEFAULT_CAPILLARY_MM} (default)', 'capillary_mm',
+                                autocomplete=calc.CAPILLARY_IDS_MM)
+                self.text_input(c.holder, 'bed_mm', 'Bed length [mm]',
+                                f'{calc.DEFAULT_BED_MM} (default)', 'bed_mm')
+            with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder', value='other'):
+                self.text_input(c.holder, 'other_area_cm2', 'Sample area ⊥ beam [cm²]', 'required',
+                                'other_area')
+            with ui.row().classes('w-full items-center'):
+                ui.switch('Sample tilted to the beam', on_change=self.inputs_changed).bind_value(
+                    c.holder, 'angle_on').mark('angle_on')
+                self.text_input(c.holder, 'angle_deg', 'Angle to beam [°]',
+                                f'{calc.DEFAULT_ANGLE_DEG} (default)', 'angle_deg'
+                                ).bind_visibility_from(c.holder, 'angle_on')
+            with ui.row().classes('w-full'):
+                self.text_input(c, 'absorption_length', 'Total absorption μx at E0 + 50 eV',
+                                f'{calc.DEFAULT_AL} (default)', 'absorption_length')
+        ui.button('Calculate sample mass', icon='play_arrow', on_click=self.calculate).props(
+            'size=lg').mark('calculate')
+        self.results = ui.card().classes(WIDE).props('role=status aria-live=polite')
+        self.render_results()
+
+    def build_builder(self):
+        b = self.s.sample_builder
+        with ui.card().classes(WIDE):
+            ui.label('Metals on a support').classes('text-h6')
+            ui.label('wt% must reflect the entire metal site. Metal site 2 is optional.').classes(
+                'text-caption')
+            with ui.row().classes('w-full'):
+                self.text_input(b.metals, 'support', 'Support', 'e.g. Al2O3', 'b_support', track=False)
+            with ui.row().classes('w-full'):
+                self.text_input(b.metals, 'site1', 'Metal site 1', 'e.g. Pt, PtO2, Pt1Sn3', 'b_site1', track=False)
+                self.text_input(b.metals, 'site1_wt_percent', 'Site 1 loading [wt%]', '', 'b_wt1', track=False)
+            with ui.row().classes('w-full'):
+                self.text_input(b.metals, 'site2', 'Metal site 2', 'optional', 'b_site2', track=False)
+                self.text_input(b.metals, 'site2_wt_percent', 'Site 2 loading [wt%]', '', 'b_wt2', track=False)
+            self.metals_message = ui.label().classes('text-negative')
+            ui.button('Use this sample', icon='check',
+                      on_click=lambda: self.use_builder('metals')).mark('use_metals')
+        with ui.card().classes(WIDE):
+            ui.label('Supported metal complexes').classes('text-h6')
+            ui.label('Give the complex loading, or the metal loading and metal center '
+                     '(not both).').classes('text-caption')
+            with ui.row().classes('w-full'):
+                self.text_input(b.complex, 'support', 'Support', 'e.g. SiO2', 'c_support', track=False)
+                self.text_input(b.complex, 'complex', 'Metal complex', 'e.g. Rh(CO)2(C5H7O2)',
+                                'c_complex', track=False)
+            with ui.row().classes('w-full'):
+                self.text_input(b.complex, 'complex_wt_percent', 'Complex loading [wt%]', '',
+                                'c_complex_wt', track=False)
+                self.text_input(b.complex, 'metal_wt_percent', 'Metal loading [wt%]', '',
+                                'c_metal_wt', track=False)
+                self.text_input(b.complex, 'metal_center', 'Metal center', 'e.g. Rh', 'c_center', track=False)
+            self.complex_message = ui.label().classes('text-negative')
+            ui.button('Use this sample', icon='check',
+                      on_click=lambda: self.use_builder('complex')).mark('use_complex')
+
+    def build_beam_path(self):
+        bp, ic = self.s.beam_path, self.s.ion_chamber
+        options = {'gas': self.materials['gas'], 'material': self.materials['material'],
+                   'solvent': self.materials['solvent'], 'metal': self.materials['metal']}
+        names = {'gas': 'Gas', 'material': 'Window / wall material', 'solvent': 'Solvent',
+                 'metal': 'Metal'}
+        with ui.card().classes(WIDE):
+            ui.label('X-ray transmission through materials at E0 + 50 eV').classes('text-h6')
+            ui.label('Values are for the beam perpendicular to each layer. A row is calculated '
+                     'when its thickness is filled in.').classes('text-caption')
+            self.beam_labels = {}
+            for key, row in bp.rows.items():
+                with ui.row().classes('w-full items-center'):
+                    ui.select(options[key], label=names[key], with_input=True).bind_value(
+                        row, 'material').classes('min-w-[12rem]').mark(f'{key}_material')
+                    ui.input('Thickness', placeholder='blank = skip').bind_value(
+                        row, 'thickness').classes('w-32').mark(f'{key}_thickness')
+                    ui.select(calc.UNITS, label='Unit').bind_value(row, 'unit').classes('w-24')
+                    self.beam_labels[key] = ui.label().classes('text-subtitle1').mark(f'{key}_result')
+            with ui.row():
+                ui.button('% Transmitted', on_click=lambda: self.update_beam(False)).mark('transmitted')
+                ui.button('Absorbed (μx)', on_click=lambda: self.update_beam(True)).mark('absorbed')
+        with ui.card().classes(WIDE):
+            ui.label('X-ray absorption in an ion chamber at E0').classes('text-h6')
+            with ui.row().classes('w-full items-center'):
+                ui.select(self.materials['gas'], label='Gas 1').bind_value(ic, 'gas1').classes(
+                    'min-w-[10rem]').mark('ic_gas1')
+                ui.input('Gas 1 [%]', placeholder=f'{calc.DEFAULT_IC_GAS1_PERCENT} (default)'
+                         ).bind_value(ic, 'gas1_percent').classes('w-32').mark('ic_percent')
+                ui.select(self.materials['gas'], label='Gas 2 (rest)').bind_value(
+                    ic, 'gas2').classes('min-w-[10rem]').mark('ic_gas2')
+            with ui.row().classes('w-full items-center'):
+                ui.input('Total pressure [torr]',
+                         placeholder=f'{calc.DEFAULT_IC_PRESSURE_TORR} (default)').bind_value(
+                    ic, 'pressure_torr').classes('w-40').mark('ic_pressure')
+                ui.select(calc.IC_LENGTHS_CM, label='Chamber length [cm]').bind_value(
+                    ic, 'length_cm').classes('w-40').mark('ic_length')
+                ui.input('Length [cm]', placeholder='required for "Other"').bind_value(
+                    ic, 'other_length_cm').bind_visibility_from(ic, 'length_cm', value='Other'
+                                                                ).classes('w-32').mark('ic_other')
+            with ui.row().classes('items-center'):
+                ui.button('Update', icon='refresh', on_click=self.update_ion_chamber).mark('ic_update')
+                self.ic_label = ui.label().classes('text-subtitle1').mark('ic_result')
+
+    def build_about(self):
+        with ui.card().classes(WIDE):
+            with ui.row().classes('items-center gap-6'):
+                ui.image(ASSETS / 'SSRL_logo_2021.png').classes('h-12 w-40').props(
+                    'fit=contain alt="SSRL"')
+                ui.image(ASSETS / 'co_access_logo_text.png').classes('h-12 w-40').props(
+                    'fit=contain alt="Co-ACCESS"')
+            ui.label(f'catMass {__version__}').classes('text-h6')
+            ui.markdown(
+                'Calculates the sample mass for a transmission XAS measurement from the sample '
+                'composition, the sample holder and a target total absorption, together with the '
+                'estimated edge step, competing edges in the scan range, fluorescence lines and '
+                'monochromator glitches.\n\n'
+                f'**Please cite:** {PAPER} [doi:10.1107/S160057752300615X]({PAPER_DOI})\n\n'
+                'Authors: Jorge E. Perez-Aguilar, Adam S. Hoffman. Co-ACCESS is supported by the '
+                'U.S. Department of Energy, Office of Basic Energy Sciences, Chemical Sciences, '
+                'Geosciences and Biosciences. We thank the SSRL Spectroscopy Staff for providing '
+                'the [crystal glitch library](https://www-ssrl.slac.stanford.edu/smbin/dataextractnew.pl).'
+                '\n\n[Co-ACCESS information](https://web.slac.stanford.edu/coaccess) · '
+                f'[Source code]({REPO_URL})\n\n'
+                f'Physics libraries: xraylib {physics.xraylib.__version__}, '
+                f'xraydb {physics.xraydb.__version__}. Values are calculated, not measured.')
+        with ui.card().classes(WIDE):
+            ui.label('Common Co-ACCESS XAS cells: wall thickness [μm]').classes('text-h6')
+            ui.table(columns=[{'name': c, 'label': c, 'field': c} for c in
+                              ('Capillary diameter', 'Kapton', 'Quartz')],
+                     rows=[{'Capillary diameter': '1 mm', 'Kapton': '80', 'Quartz': '10 or 20'},
+                           {'Capillary diameter': '3 mm', 'Kapton': '87', 'Quartz': '200'}])
+            ui.label('Other: Kapton shield 2 mils; Mylar 3.5 μm.')
+        with ui.card().classes(WIDE):
+            with ui.row().classes('items-center'):
+                ui.button('Check for updates', icon='update', on_click=self.check_updates).mark(
+                    'check_updates')
+                self.update_label = ui.label().classes('text-body2')
+            ui.label('Checking contacts GitHub once; catMass makes no other network '
+                     'connections.').classes('text-caption')
+
+    # --- results ---------------------------------------------------------------------------
+    def render_results(self):
+        self.results.clear()
+        r = self.result
+        with self.results:
+            ui.label('Results').classes('text-h6')
+            if r is None:
+                ui.label('Enter a sample and press "Calculate sample mass".').classes('text-body2')
+                return
+            if self.stale:
+                ui.label('Inputs have changed since this calculation; press Calculate again.'
+                         ).classes('text-warning').mark('stale')
+            if not r.ok:
+                with ui.row().classes('items-center'):
+                    ui.icon('error', color='negative')
+                    ui.label(r.error).classes('text-negative').mark('error')
+            else:
+                shown = r.shown
+                rows = [('Diluted sample mass', f"{shown['mass']} mg", 'mass'),
+                        ('Estimated edge step', shown['step'] + (
+                            '  (above 1: consider diluting)' if shown['step_red'] else ''), 'step'),
+                        ('Sample mass', f"{shown['sample_mass']} mg", 'sample_mass'),
+                        ('Diluent mass', f"{shown['diluent_mass']} mg", 'diluent_mass'),
+                        ('Edge energy E0', f"{shown['E0']} eV", 'E0')]
+                with ui.grid(columns=2).classes('gap-x-6'):
+                    for name, value, marker in rows:
+                        ui.label(name)
+                        label = ui.label(value).classes('text-weight-bold').mark(marker)
+                        if marker == 'step' and shown['step_red']:
+                            label.classes('text-negative')
+                if r.diagnostic:
+                    ui.label(r.diagnostic).classes('text-body2').mark('diagnostic')
+                if r.plot_error:
+                    ui.label(r.plot_error).classes('text-negative').mark('plot_error')
+            with ui.expansion('Values used in this calculation', value=True).classes('w-full'):
+                ui.table(columns=[{'name': 'quantity', 'label': 'Quantity', 'field': 'quantity',
+                                   'align': 'left'},
+                                  {'name': 'value', 'label': 'Value', 'field': 'value',
+                                   'align': 'left'},
+                                  {'name': 'source', 'label': 'Source', 'field': 'source',
+                                   'align': 'left'}],
+                         rows=[vars(u) for u in r.values_used]).classes('w-full').props(
+                    'dense flat').mark('values_used')
+
+    def render_plots(self):
+        self.plots.clear()
+        with self.plots:
+            r = self.result
+            if r is None or not r.ok or r.plot is None:
+                ui.label('Calculate a sample to see its plots.' if r is None or r.ok else
+                         'No plots: the last calculation did not succeed.')
+                if r is not None and r.plot_error:
+                    ui.label(r.plot_error).classes('text-negative')
+                return
+            if self.stale:
+                ui.label('Inputs have changed since these plots were made.').classes('text-warning')
+            with ui.row().classes('items-center'):
+                ui.label('Glitch overlay:')
+                for f, label, _ in physics.GLITCH_LIBRARY:
+                    ui.checkbox(label, value=self.glitch_shown[f],
+                                on_change=lambda e, f=f: self.set_glitch(f, e.value))
+            for figure in plot_figures(r.plot, self.glitch_shown, self.dark.value):
+                ui.plotly(figure).classes('w-full h-96')
+            with ui.row():
+                for name, text in calc.plot_csv(r.plot).items():
+                    ui.button(name, icon='download',
+                              on_click=lambda n=name, t=text: ui.download.content(
+                                  t.encode('utf-8'), n, 'text/csv')).props('outline')
+
+    def set_dark(self, e):
+        self.dark.set_value(e.value)
+        self.render_plots()  # plot colours follow the theme
+
+    def set_glitch(self, file, shown):
+        self.glitch_shown[file] = shown
+        self.render_plots()
+
+    # --- actions ---------------------------------------------------------------------------
+    def inputs_changed(self, *_):
+        if self.result is not None and not self.stale:
+            self.stale = True
+            self.render_results()
+            self.render_plots()
+
+    def holder_changed(self, e):
+        """Switching to "Other" pre-fills the area once from the holder selected before."""
+        h = self.s.calculator.holder
+        previous = getattr(self, '_last_holder', 'pellet')
+        if e.value == 'other' and previous != 'other' and h.other_area_cm2.strip() == '':
+            probe = calc.CalculatorInputs(holder=calc.HolderInputs(
+                previous, pellet_mm=h.pellet_mm, capillary_mm=h.capillary_mm, bed_mm=h.bed_mm))
+            area = holder_area_of(probe)
+            if area is not None:
+                h.other_area_cm2 = f'{area:.8g}'
+        self._last_holder = e.value
+        self.inputs_changed()
+
+    def calculate(self):
+        self.result = calc.run_calculation(self.s.calculator)
+        self.stale = False
+        self.ic_result = None
+        if self.result.ok:
+            self.update_ion_chamber()  # agreed: calculated with the mass, plus its Update button
+        self.render_results()
+        self.render_plots()
+
+    def use_builder(self, which):
+        b = self.s.sample_builder
+        if which == 'metals':
+            formula, message = calc.build_from_metal_sites(b.metals), self.metals_message
+        else:
+            formula, message = calc.build_from_complex(b.complex), self.complex_message
+        if calc.builder_failed(formula):
+            message.set_text(formula)
+            return
+        message.set_text('')
+        self.s.calculator.sample.formula = formula
+        self.inputs_changed()
+        ui.notify('Sample formula updated from the Sample Builder', type='positive')
+        self.tabs.set_value(self.t_calc)
+
+    def E0(self):
+        return self.result.E0_eV if self.result is not None and self.result.ok else None
+
+    def update_beam(self, absorbed):
+        self.beam_result = calc.beam_path(self.s.beam_path, self.E0(), absorbed)
+        for key, label in self.beam_labels.items():
+            label.set_text(self.beam_result.get(key, ''))
+
+    def update_ion_chamber(self):
+        self.ic_result = calc.ion_chamber(self.s.ion_chamber, self.E0())
+        text = self.ic_result if self.ic_result.startswith('ERROR') else \
+            f'{self.ic_result} % beam absorbed'
+        self.ic_label.set_text(text)
+
+    def save(self):
+        text = savefile.dumps(self.s, self.result, self.beam_result, self.ic_result)
+        ui.download.content(text.encode('utf-8'), 'catmass_calculation.json', 'application/json')
+
+    def open_dialog(self):
+        with ui.dialog() as dialog, ui.card():
+            ui.label('Open a catMass file (.json)').classes('text-h6')
+            ui.upload(on_upload=lambda e: self.load(e, dialog), auto_upload=True).props(
+                'accept=.json').mark('upload')
+            ui.button('Cancel', on_click=dialog.close).props('flat')
+        dialog.open()
+
+    async def load(self, e, dialog):
+        text = e.file.text()
+        if inspect.isawaitable(text):
+            text = await text
+        try:
+            loaded = savefile.loads(text)
+        except savefile.SaveFileError as exc:
+            ui.notify(str(exc), type='negative', multi_line=True)
+            return
+        copy_into(self.s, loaded)
+        dialog.close()
+        self.calculate()  # agreed: opening restores the inputs and recalculates
+        ui.notify('File opened and recalculated', type='positive')
+
+    async def check_updates(self):
+        self.update_label.set_text('Checking...')
+        try:
+            tag = await run.io_bound(latest_release)
+        except Exception:
+            self.update_label.set_text('Could not check for updates (offline?).')
+            return
+        if tag is None:
+            self.update_label.set_text('No releases published yet.')
+        elif tag.lstrip('v') == __version__:
+            self.update_label.set_text(f'catMass {__version__} is the latest version.')
+        else:
+            self.update_label.set_text(f'catMass {tag} is available at {REPO_URL}/releases')
+
+
+def holder_area_of(inp: calc.CalculatorInputs):
+    """Area [cm2] of the holder in `inp` using the agreed defaults, or None if invalid."""
+    h = inp.holder
+    try:
+        if h.holder == 'pellet':
+            return physics.holder_area('pellet', pellet_mm=h.pellet_mm.strip() or
+                                       calc.DEFAULT_PELLET_MM)
+        if h.holder == 'capillary':
+            bed = float(h.bed_mm.strip() or calc.DEFAULT_BED_MM)
+            return physics.holder_area('capillary', h.capillary_mm.strip() or
+                                       calc.DEFAULT_CAPILLARY_MM, repr(bed/10))
+    except ValueError:
+        return None
+    return None
+
+
+def plot_figures(pd, glitch_shown, dark=False):
+    """Three Plotly figures (energy, k, fluorescence) from physics.plot_data output."""
+    template = 'plotly_dark' if dark else 'plotly_white'
+    config = {'displaylogo': False, 'responsive': True,
+              'toImageButtonOptions': {'format': 'png', 'filename': 'catmass_plot', 'scale': 2}}
+    e, k, f, gl = pd['energy'], pd['k'], pd['fluorescence'], pd['glitches'] or []
+    shown = [g for g in gl if glitch_shown.get(g['file'])]
+
+    data = [{'type': 'scatter', 'mode': 'lines', 'x': list(e['x']), 'y': list(e['y']),
+             'name': 'Total sample absorption'},
+            {'type': 'scatter', 'mode': 'markers+text', 'x': list(e['edges_E']),
+             'y': list(e['edges_absorption']), 'text': list(e['edges_step_label']),
+             'textposition': 'top center', 'name': 'Estimated edge step(s)',
+             'hovertext': [f'{el} {sh}: step {st}' for el, sh, st in
+                           zip(e['edges_element'], e['edges_shell'], e['edges_step_label'])]}]
+    data += [{'type': 'scatter', 'mode': 'lines', 'x': g['E_x'], 'y': g['E_y'], 'yaxis': 'y2',
+              'name': g['label'], 'line': {'width': 1}} for g in shown]
+    energy = {'data': data, 'config': config, 'layout': {
+        'template': template, 'title': {'text': 'Sample absorption'},
+        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'range': e['xlim']},
+        'yaxis': {'title': {'text': 'Sample absorption (μ<sub>average</sub> · mass/area)'},
+                  'range': e['ylim']},
+        'yaxis2': {'overlaying': 'y', 'side': 'right', 'range': [-7, 7], 'showticklabels': False,
+                   'showgrid': False},
+        'legend': {'orientation': 'h', 'y': -0.25}, 'margin': {'t': 40}}}
+
+    labels = [f'{el} {ed}' for el, ed in zip(k['element_labels'], k['edge_labels'])]
+    data = [{'type': 'scatter', 'mode': 'markers+text', 'x': list(k['edges_k']),
+             'y': list(k['edges_y']), 'text': labels, 'textposition': 'top center',
+             'name': 'Other edges in the scan range'}]
+    data += [{'type': 'scatter', 'mode': 'lines', 'x': g['k_x'], 'y': g['k_y'], 'name': g['label'],
+              'line': {'width': 1}} for g in shown]
+    kspace = {'data': data, 'config': config, 'layout': {
+        'template': template, 'title': {'text': 'Edges and glitches in k'},
+        'xaxis': {'title': {'text': 'k (Å<sup>-1</sup>)'}, 'range': k['xlim']},
+        'yaxis': {'title': {'text': 'Glitch amplitude (%)'}, 'range': [-7, 7]},
+        'legend': {'orientation': 'h', 'y': -0.25}, 'margin': {'t': 40}}}
+
+    xs, ys = [], []
+    for x, y in zip(f['x'], f['y']):
+        xs += [x, x, None]
+        ys += [0, y, None]
+    data = [{'type': 'scatter', 'mode': 'lines', 'x': xs, 'y': ys, 'name': 'Fluorescence lines',
+             'hoverinfo': 'skip'},
+            {'type': 'scatter', 'mode': 'markers', 'x': list(f['x']), 'y': list(f['y']),
+             'hovertext': list(f['names']), 'name': 'Line', 'marker': {'size': 5},
+             'showlegend': False}]
+    shapes = []
+    if f['band']:
+        shapes.append({'type': 'rect', 'x0': f['band'][0], 'x1': f['band'][1], 'y0': 0,
+                       'y1': f['band'][2], 'fillcolor': 'gray', 'opacity': 0.15, 'line': {'width': 0}})
+    fluorescence = {'data': data, 'config': config, 'layout': {
+        'template': template, 'title': {'text': 'Fluorescence lines of the sample'},
+        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'range': f['xlim']},
+        'yaxis': {'title': {'text': 'Line intensity'}, 'range': f['ylim']},
+        'shapes': shapes, 'showlegend': False, 'margin': {'t': 40}}}
+    return [energy, kspace, fluorescence]
+
+
+def root():
+    CatMassPage()
+
+
+def main():
+    """Entry point of the `catmass` command: serve locally and open the browser."""
+    ui.run(root, title='catMass', favicon=ASSETS / 'CoACCESSScale_v6.ico', host='127.0.0.1',
+           port=free_port(), reload=False, show=True, show_welcome_message=False)

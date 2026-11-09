@@ -6,7 +6,7 @@ title: CatMass
 message: Please cite this software using these metadata.
 type: software
 authors:
-	- given-names: 'Jorge E. '
+  - given-names: 'Jorge E. '
     family-names: 'Perez-Aguilar'
     email: jperezag@slac.stanford.edu
     affiliation: SLAC National Accelerator Laboratory
@@ -16,3 +16,4 @@ authors:
     email: ashoff@slac.stanford.edu
     affiliation: SLAC National Accelerator Laboratory
     orcid: 'https://orcid.org/0000-0002-7682-4108'
+version: 2026.11.1
