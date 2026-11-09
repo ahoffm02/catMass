@@ -1,0 +1,2 @@
+# Golden files are compared byte for byte; keep LF on every OS (core.autocrlf would add CR).
+tests/golden/v3/*.json text eol=lf
