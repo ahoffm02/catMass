@@ -1254,6 +1254,8 @@ def calculation_input_error(Sample, Element, Edge, Area, AL, Sample_DR='', Dilue
                 return (f"ERROR - {Element} {Edge} edge ({E0*1000:.0f} eV) is below the "
                         f"{MIN_EDGE_ENERGY_EV} eV minimum")
     else:
+        if Edge == '':  # v3 crashed here (float('') of the "Other" energy box)
+            return 'ERROR - Energy to calculate sample mass not Defined'
         error = number_error(Edge, 'Energy to calculate sample mass', minimum=MIN_EDGE_ENERGY_EV,
                              allow_minimum=True)
         if error:
