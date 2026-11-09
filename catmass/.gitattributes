@@ -1,2 +1,4 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+# Glitch library: stored byte for byte (original CRLF) to match the v3 reference hashes
+data/glitch/*.txt -text
