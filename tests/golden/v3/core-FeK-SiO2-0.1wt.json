@@ -1,6 +1,6 @@
 {
  "schema": "catmass-golden/1",
- "generator_version": "1",
+ "generator_version": "2",
  "case": {
   "id": "core-FeK-SiO2-0.1wt",
   "group": "core",
@@ -944,7 +944,8 @@
      ]
     }
    ],
-   "exceptions_so_far": 0
+   "exceptions_so_far": 0,
+   "physics_calls_so_far": 29
   }
  ],
  "physics_calls": [

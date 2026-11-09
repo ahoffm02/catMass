@@ -1,6 +1,6 @@
 {
  "schema": "catmass-golden/1",
- "generator_version": "1",
+ "generator_version": "2",
  "case": {
   "id": "G-IC-30cm-Ar20-N2",
   "group": "G",
@@ -719,7 +719,8 @@
     "complexsaver": [null, null, null, null, null, null]
    },
    "figures": [],
-   "exceptions_so_far": 0
+   "exceptions_so_far": 0,
+   "physics_calls_so_far": 12
   }
  ],
  "physics_calls": [

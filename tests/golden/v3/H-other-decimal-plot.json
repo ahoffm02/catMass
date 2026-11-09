@@ -1,6 +1,6 @@
 {
  "schema": "catmass-golden/1",
- "generator_version": "1",
+ "generator_version": "2",
  "case": {
   "id": "H-other-decimal-plot",
   "group": "H",
@@ -561,7 +561,8 @@
      ]
     }
    ],
-   "exceptions_so_far": 1
+   "exceptions_so_far": 1,
+   "physics_calls_so_far": 11
   }
  ],
  "physics_calls": [

@@ -51,7 +51,7 @@ REFERENCE = LEGACY / "catMass_2023v3_singlefile_EXE-REFERENCE.py"
 GLITCH_FILES = ["si2209093.txt", "si220093.txt", "si1119043.txt", "si111043.txt"]
 DEFAULT_OUT = HERE / "v3"
 SCHEMA = "catmass-golden/1"
-GENERATOR_VERSION = "1"
+GENERATOR_VERSION = "2"  # 2: snapshots record physics_calls_so_far (no value changed)
 
 # Reference build environment recovered from the v3 exe (vault plan, 2026-11-07). Generation is
 # refused on anything else, so a golden file can never come from the wrong backend versions.
@@ -310,6 +310,7 @@ def run_case(case_id, out_path):
             "samplesaver": v3.samplesaver, "complexsaver": v3.complexsaver})
         snap["figures"] = figure_data()
         snap["exceptions_so_far"] = len(exceptions)
+        snap["physics_calls_so_far"] = len(tracer.calls)  # ties each snapshot to its calculation
         return snap
 
     def do_step(step, snapshots):

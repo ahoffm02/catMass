@@ -1,6 +1,6 @@
 {
  "schema": "catmass-golden/1",
- "generator_version": "1",
+ "generator_version": "2",
  "case": {
   "id": "C-PtAu-SiO2-PtL3",
   "group": "C",
@@ -1298,7 +1298,8 @@
      ]
     }
    ],
-   "exceptions_so_far": 0
+   "exceptions_so_far": 0,
+   "physics_calls_so_far": 35
   }
  ],
  "physics_calls": [

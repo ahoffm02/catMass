@@ -1,6 +1,6 @@
 {
  "schema": "catmass-golden/1",
- "generator_version": "1",
+ "generator_version": "2",
  "case": {
   "id": "C-MnFe2O4-BN-MnK",
   "group": "C",
@@ -930,7 +930,8 @@
      ]
     }
    ],
-   "exceptions_so_far": 0
+   "exceptions_so_far": 0,
+   "physics_calls_so_far": 34
   }
  ],
  "physics_calls": [
