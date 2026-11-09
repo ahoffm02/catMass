@@ -60,6 +60,24 @@ CHANGES = {
             {'case': 'G-IC-other-20cm', 'snapshot': 'final', 'field': 'textboxP11', 'v3': '92.87', 'new': '95.25'},
         ],
     },
+    "F7": {
+        "finding": 7,
+        "approved": "researcher, 2026-11-08 (validation in the parsing layer, UI only displays)",
+        "title": "Invalid input returns an 'ERROR - ...' message instead of crashing",
+        "why": "v3 raised (the exe would close) on invalid formulas, element symbols, missing "
+               "edges, non-numeric or out-of-range numbers, loadings over 100 wt%, and an 'Other' "
+               "energy with a decimal when plotting (int() of the energy text).",
+        "numbers_changed": False,  # valid input is unchanged; only former crashes change
+        "values": [
+            {'case': 'H-bad-formula', 'snapshot': 'final', 'field': 'dilute_sample', 'v3': ['None', 'al2o3'], 'new': ["ERROR - Sample 'al2o3' is not a valid chemical formula (Found a lowercase character or digit where not allowed). Element symbols are case-sensitive, e.g. Al2O3", '']},
+            {'case': 'H-bad-formula', 'snapshot': 'final', 'field': 'calculate_result raises', 'v3': 'ValueError: Invalid chemical formula: Found a lowercase character or digit where not allowed', 'new': None},
+            {'case': 'H-bad-formula', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': '', 'new': "ERROR - Sample 'al2o3' is not a valid chemical formula (Found a lowercase character or digit where not allowed). Element symbols are case-sensitive, e.g. Al2O3"},
+            {'case': 'H-bad-symbol', 'snapshot': 'final', 'field': 'calculate_result raises', 'v3': 'ValueError: Invalid chemical symbol', 'new': None},
+            {'case': 'H-bad-symbol', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': '', 'new': "ERROR - Element to be Scanned 'Xx' is not an element symbol. Symbols are case-sensitive, e.g. Fe"},
+            # "Other" E0 = 11564.5 eV: the fluorescence panel is centred on it (v3 crashed)
+            {'case': 'H-other-decimal-plot', 'snapshot': 'final', 'field': 'plot', 'v3': "ValueError: invalid literal for int() with base 10: '11564.5'", 'new': {'fluorescence_xlim': [10764.5, 12364.5]}},
+        ],
+    },
 }
 
 

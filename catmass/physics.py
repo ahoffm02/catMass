@@ -12,6 +12,9 @@ Layout:
    character against the reference).
 3. Physics that lived inside v3's GUI methods, lifted into plain functions. Expressions are
    copied unchanged; inputs that v3 read from text boxes arrive as the same strings.
+4. Input validation (change F7): bad input returns an 'ERROR - ...' message instead of raising.
+   The UI calls calculate_result, dilute_sample, build_metal_sample, build_complex_sample,
+   plot_data, transmission_panel and ion_chamber_absorbed, which all validate first.
 
 Inputs keep v3's conventions: energies in eV unless noted, areas in cm^2, masses returned in mg,
 thicknesses in the v3 unit-combo index convention (see `unitconvert`).
@@ -830,7 +833,13 @@ def calculate_result(Sample, Element, Edge, Area, AL, Sample_DR='', Diluent_DR='
 
     Returns a dict: Result (error text or 'None'), Enot [eV], ms [mg], stp, muave,
     whilecount, newsetp, MF_Samp, MF_Dil.
+    Change F7: invalid non-empty inputs return an 'ERROR - ...' Result instead of raising.
     """
+    error = calculation_input_error(Sample, Element, Edge, Area, AL, Sample_DR, Diluent_DR)
+    if error:
+        return {'Result': error, 'Enot': 0, 'ms': 0, 'stp': 0, 'muave': AL, 'whilecount': 1,
+                'newsetp': None, 'MF_Samp': None, 'MF_Dil': None}
+
     if Sample_DR == '':
         A = 1
     else:
@@ -967,8 +976,21 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
     - k: k of the sample's other edges above E0, and the glitch overlay in k;
     - fluorescence: emission lines of every edge of every element, x-range centred on the
       scanned edge's alpha-1 line (or the "Other" energy).
-    Raises ValueError where v3 does (an "Other" energy with a decimal, finding 7).
+    'error' is None, or an 'ERROR - ...' message for unusable plot limits (then no other keys).
+    Change F7: v3 crashed for an "Other" energy with a decimal (int() of the energy text) and for
+    non-numeric or reversed plot limits.
     """
+    for text, what in ((lower, 'Lower plot limit'), (upper, 'Upper plot limit')):
+        if text == '':
+            return {'error': f"ERROR - {what} not defined"}
+        error = number_error(text, what, minimum=-math.inf)
+        if error:
+            return {'error': error}
+    if float(lower) >= float(upper):
+        return {'error': "ERROR - Lower plot limit must be below the upper plot limit"}
+    if Enot + float(lower) <= 0:
+        return {'error': "ERROR - Lower plot limit reaches below 0 eV photon energy"}
+
     kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols = XASEZero(Sample,Enot)
 
     atomicedgesall,atomicsymbolsall,atomicnumbersall,atomicedgesymbolsall = XASEZeroList(Sample)
@@ -1036,7 +1058,7 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
         fluorescence_band = [x_xrayf_lines[xrayf_lines_name.index(Edge[0]+'a1'+' '+Element+' '+Edge)]-250,x_xrayf_lines[xrayf_lines_name.index(Edge[0]+'a1'+' '+Element+' '+Edge)]+250, max(y_xrayf_lines)]
     except:
-        fluorescence_xlim = [int(Edge)-800, int(Edge)+800]
+        fluorescence_xlim = [float(Edge)-800, float(Edge)+800]  # v3: int(Edge); change F7
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
 
     for i in range(length4):
@@ -1046,6 +1068,7 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         yedges[i]='{0:0.3f}'.format(yedges2[i])
 
     return {
+        'error': None,
         'energy': {'x': x, 'y': y, 'xlim': energy_xlim, 'ylim': energy_ylim,
                    'edges_E': Enots, 'edges_absorption': muaves, 'edges_step_label': yedges},
         'k': {'x': kspace, 'y': y2, 'xlim': k_xlim,
@@ -1068,6 +1091,8 @@ def transmission_panel(Enot, gas, gas_thickness, gas_unit, material, material_th
     3 mm, 4 um). Returns {row: display text} for rows with a thickness.
     Change F1 (finding 1, approved 2026-11-08): each row uses its own material. v3 computed the
     solvent row with the gas dropdown's material and the metal row with the solvent dropdown's.
+    Change F7: a non-numeric or negative thickness, or no E0 yet, gives an 'ERROR - ...' text for
+    that row (v3 crashed).
     """
     Materialgases = gas
     Materialwall = material
@@ -1080,6 +1105,12 @@ def transmission_panel(Enot, gas, gas_thickness, gas_unit, material, material_th
             ('metal', metal_thickness, metal_unit, Materialmetal)]
     for row, thickness, unit, mat in rows:
         if thickness !='':
+            error = number_error(thickness, f"{row.capitalize()} thickness", allow_minimum=True)
+            if Enot == '':
+                error = "ERROR - E0 not defined; calculate the sample mass first"
+            if error:
+                shown[row] = error
+                continue
             thickness = unitconvert(thickness,unit)
             trans = np.exp(-float(thickness) *  xraydb.material_mu(mat,float(Enot)+50))*100
             if absorbed:
@@ -1108,6 +1139,9 @@ def ion_chamber_absorbed(Enot, gas1, gas2, gas1_slider, pressure_torr, length, o
     if length == 'Other':
         if other_length =='':
             return None
+        error = number_error(other_length, 'Ion chamber length')  # change F7
+        if error:
+            return error
         L = other_length
     else:
         L = length
@@ -1126,10 +1160,154 @@ def build_complex_sample(Support, Complex, Complex_Loading, Metal_Loading, Metal
 
     Complex loading only: treated as a metal site of that loading (metalCalculateSample).
     Metal loading + metal center: ComplexCalculateSample. Anything else: v3's message.
+    Change F7: invalid inputs return an 'ERROR - ...' message instead of raising.
     """
+    error = complex_input_error(Support, Complex, Complex_Loading, Metal_Loading, Metal_Center)
+    if error:
+        return error
     if Complex_Loading != '' and Metal_Loading == '':
         return metalCalculateSample(Complex, Complex_Loading, '', '', Support)
     elif Complex_Loading == '' and Metal_Loading != '' and Metal_Center != '':
         return ComplexCalculateSample(Complex, Metal_Loading, Metal_Center, Support)
     else:
         return 'COMPLEX LODAING/METAL LOADING/METAL CENTER INCORRECTLY DEFINED'
+
+
+# =============================================================================================
+# 4. Input validation (change F7)
+# =============================================================================================
+# Decision 2026-11-08 (finding 7): invalid input is caught here, in the physics layer, and
+# returned as an 'ERROR - ...' message in v3's convention; the UI only displays it. Empty fields
+# are left to v3's own messages (and to the UI defaults agreed for Release 1). Valid input reaches
+# the v3 functions unchanged, so every golden value still holds.
+
+# Assumption (HC16, unconfirmed): lowest edge or "Other" energy accepted. v3 evaluates down to
+# E0 - 430 eV in its retry loop, and xraylib rejects energies <= 0, so lower energies crash v3.
+# The researcher uses catMass for edges of about 2 keV and up.
+MIN_EDGE_ENERGY_EV = 500
+
+EDGE_SHELLS = {'K': 0, 'L1': 1, 'L2': 2, 'L3': 3}
+
+
+def formula_error(text, what):
+    """Message if a non-empty formula cannot be parsed, else None."""
+    if text == '':
+        return None
+    try:
+        xraylib.CompoundParser(text)
+    except ValueError as exc:
+        reason = str(exc).replace('Invalid chemical formula: ', '')
+        return (f"ERROR - {what} '{text}' is not a valid chemical formula ({reason}). "
+                "Element symbols are case-sensitive, e.g. Al2O3")
+    return None
+
+
+def element_error(text, what):
+    """Message if a non-empty element symbol is not an element, else None."""
+    if text == '':
+        return None
+    try:
+        xraylib.SymbolToAtomicNumber(text)
+    except ValueError:
+        return (f"ERROR - {what} '{text}' is not an element symbol. "
+                "Symbols are case-sensitive, e.g. Fe")
+    return None
+
+
+def number_error(text, what, minimum=0.0, allow_minimum=False, below=None):
+    """Message if a non-empty number box is not a number in range, else None.
+
+    Accepts values > minimum (or >= minimum if allow_minimum) and, if given, < below.
+    """
+    if text == '':
+        return None
+    try:
+        value = float(text)
+    except (TypeError, ValueError):
+        return f"ERROR - {what} '{text}' is not a number"
+    if not math.isfinite(value):
+        return f"ERROR - {what} '{text}' is not a finite number"
+    if value < minimum or (value == minimum and not allow_minimum):
+        bound = 'at least' if allow_minimum else 'greater than'
+        return f"ERROR - {what} must be {bound} {minimum:g}"
+    if below is not None and value >= below:
+        return f"ERROR - {what} must be less than {below:g}"
+    return None
+
+
+def calculation_input_error(Sample, Element, Edge, Area, AL, Sample_DR='', Diluent_DR=''):
+    """First problem with the inputs of calculate_result, or None."""
+    error = formula_error(Sample, 'Sample')
+    if error:
+        return error
+    if Edge in EDGE_SHELLS:
+        error = element_error(Element, 'Element to be Scanned')
+        if error:
+            return error
+        if Element != '':
+            try:
+                E0 = xraylib.EdgeEnergy(xraylib.SymbolToAtomicNumber(Element), EDGE_SHELLS[Edge])
+            except ValueError:
+                return f"ERROR - {Element} has no {Edge} edge"
+            if E0*1000 < MIN_EDGE_ENERGY_EV:
+                return (f"ERROR - {Element} {Edge} edge ({E0*1000:.0f} eV) is below the "
+                        f"{MIN_EDGE_ENERGY_EV} eV minimum")
+    else:
+        error = number_error(Edge, 'Energy to calculate sample mass', minimum=MIN_EDGE_ENERGY_EV,
+                             allow_minimum=True)
+        if error:
+            return error + ' eV' if 'must be' in error else error
+    for text, what in ((Area, 'Sample area'), (AL, 'Absorption length')):
+        error = number_error(text, what)
+        if error:
+            return error
+    error = number_error(Sample_DR, 'Sample ratio')
+    if error:
+        return error
+    return number_error(Diluent_DR, 'Diluent ratio', allow_minimum=True)
+
+
+def dilute_sample(Sample, Diluent, Sample_DR, Diluent_DR):
+    """XASStoichCalc with input validation: (error message or 'None', diluted formula)."""
+    for error in (formula_error(Sample, 'Sample'), formula_error(Diluent, 'Diluent'),
+                  number_error(Sample_DR, 'Sample ratio'),
+                  number_error(Diluent_DR, 'Diluent ratio', allow_minimum=True)):
+        if error:
+            return error, ''
+    return XASStoichCalc(Sample, Diluent, Sample_DR, Diluent_DR)
+
+
+def build_metal_sample(Metal_Site1, Metal1_Loading, Metal_Site2, Metal2_Loading, Support):
+    """metalCalculateSample (Sample Builder, metals tab) with input validation."""
+    for error in (formula_error(Support, 'Support'), formula_error(Metal_Site1, 'Metal site 1'),
+                  formula_error(Metal_Site2, 'Metal site 2'),
+                  number_error(Metal1_Loading, 'Metal site 1 loading [wt%]', below=100),
+                  number_error(Metal2_Loading, 'Metal site 2 loading [wt%]', below=100)):
+        if error:
+            return error
+    if Metal1_Loading != '' and Metal_Site2 != '' and Metal2_Loading != '':
+        total = float(Metal1_Loading) + float(Metal2_Loading)
+        if total >= 100:
+            return f"ERROR - Metal loadings add up to {total:g} wt%; they must total less than 100 wt%"
+    return metalCalculateSample(Metal_Site1, Metal1_Loading, Metal_Site2, Metal2_Loading, Support)
+
+
+def complex_input_error(Support, Complex, Complex_Loading, Metal_Loading, Metal_Center):
+    """First problem with the Sample Builder complexes-tab inputs, or None."""
+    for error in (formula_error(Support, 'Support'), formula_error(Complex, 'Metal complex'),
+                  number_error(Complex_Loading, 'Complex loading [wt%]', below=100),
+                  number_error(Metal_Loading, 'Metal loading [wt%]', below=100),
+                  element_error(Metal_Center, 'Metal center')):
+        if error:
+            return error
+    if Complex != '' and Metal_Loading != '' and Metal_Center != '' and Complex_Loading == '':
+        parsed = xraylib.CompoundParser(Complex)
+        Z = xraylib.SymbolToAtomicNumber(Metal_Center)
+        if Z not in parsed['Elements']:
+            return 'ERROR - Metal Center not in Complex'  # v3's message (ERROR3)
+        fraction = parsed['massFractions'][parsed['Elements'].index(Z)]
+        complex_wt = float(Metal_Loading)/fraction
+        if complex_wt >= 100:
+            return (f"ERROR - {Metal_Loading} wt% {Metal_Center} needs {complex_wt:.1f} wt% of "
+                    "this complex; it must be less than 100 wt%")
+    return None

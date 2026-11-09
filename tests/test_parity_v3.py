@@ -132,7 +132,7 @@ def calc_groups(g):
         snap = next((sn for sn in g["snapshots"] if end <= sn["physics_calls_so_far"]
                      and (k + 1 == len(starts) or sn["physics_calls_so_far"] <= starts[k + 1])),
                     None)
-        groups.append({"main": main, "retries": retries, "snapshot": snap})
+        groups.append({"stoich": calls[s], "main": main, "retries": retries, "snapshot": snap})
     return groups
 
 
@@ -204,16 +204,25 @@ def test_calculation_and_plot(case_id):
         mw = snap["main_window"] if snap else final
         ratios = (mw["textbox_dil03"]["text"], mw["textbox_dil04"]["text"])
         where = f"click {n}"
+        label = snap["label"] if snap else "final"
 
-        if "raised" in main:
-            assert raised(physics.calculate_result, *main["args"], *ratios) == main["raised"]
+        stoich = grp["stoich"]
+        assert_same(physics.dilute_sample(*stoich["args"]),
+                    expected(case_id, label, "dilute_sample", stoich["result"]),
+                    f"{where} dilute_sample")
+
+        v3_raised = main.get("raised")
+        must_raise = expected(case_id, label, "calculate_result raises", v3_raised)
+        if must_raise:
+            assert raised(physics.calculate_result, *main["args"], *ratios) == must_raise
             continue
         r = physics.calculate_result(*main["args"], *ratios)
-        for key, i in (("Result", 0), ("Enot", 1), ("ms", 2), ("muave", 4)):
-            assert_same(r[key], main["result"][i], f"{where} {key}")
-        last = grp["retries"][-1] if grp["retries"] else main
-        assert_same(r["stp"], last["result"][3], f"{where} stp")
-        assert r["whilecount"] == 1 + len(grp["retries"]), f"{where} retry count"
+        if v3_raised is None:  # v3 returned a result: the raw values must match it
+            for key, i in (("Result", 0), ("Enot", 1), ("ms", 2), ("muave", 4)):
+                assert_same(r[key], main["result"][i], f"{where} {key}")
+            last = grp["retries"][-1] if grp["retries"] else main
+            assert_same(r["stp"], last["result"][3], f"{where} stp")
+            assert r["whilecount"] == 1 + len(grp["retries"]), f"{where} retry count"
 
         if snap is None:
             continue  # display overwritten before any snapshot; values checked above
@@ -222,11 +231,13 @@ def test_calculation_and_plot(case_id):
         boxes = {"mass": "textbox5", "step": "textbox6", "sample_mass": "textbox7",
                  "diluent_mass": "textbox8", "E0": "textbox9"}
         for key, box in boxes.items():
-            assert_same("" if shown is None else shown[key], mw[box]["text"], f"{where} {box}")
+            assert_same("" if shown is None else shown[key],
+                        expected(case_id, label, box, mw[box]["text"]), f"{where} {box}")
         if shown is not None:
             red = mw["textbox6"]["style"].replace(" ", "").endswith("rgb(255,0,0)")
             assert red == shown["step_red"], f"{where} red step flag"
-        assert_same(physics.diagnostic_text(r, plot, angle), mw["textbox_Xray_05"]["text"],
+        assert_same(physics.diagnostic_text(r, plot, angle),
+                    expected(case_id, label, "textbox_Xray_05", mw["textbox_Xray_05"]["text"]),
                     f"{where} diagnostic")
 
         if plot and shown is not None:
@@ -236,10 +247,21 @@ def test_calculation_and_plot(case_id):
             v3_crash = [e for e in g["exceptions"]
                         if any("calculateResult" in fr for fr in e["frames"])]
             if v3_crash:
-                assert raised(physics.plot_data, *args) == \
-                    f"{v3_crash[0]['type']}: {v3_crash[0]['message']}", f"{where} plot crash"
+                crash = f"{v3_crash[0]['type']}: {v3_crash[0]['message']}"
+                want = expected(case_id, label, "plot", crash)
+                if want == crash:
+                    assert raised(physics.plot_data, *args) == crash, f"{where} plot crash"
+                else:  # approved change: the plot now works where v3 crashed
+                    pd = physics.plot_data(*args)
+                    assert pd["error"] is None, pd["error"]
+                    assert_same(pd["fluorescence"]["xlim"], want["fluorescence_xlim"], where)
+                    drawn = snap["figures"][plots_so_far]["axes"][0]["lines"][0]
+                    assert_same(pd["energy"]["x"], drawn["x"], f"{where} energy.x (v3 partial)")
+                    assert_same(pd["energy"]["y"], drawn["y"], f"{where} energy.y (v3 partial)")
             else:
-                check_figure(snap["figures"][plots_so_far], physics.plot_data(*args))
+                pd = physics.plot_data(*args)
+                assert pd["error"] is None, pd["error"]
+                check_figure(snap["figures"][plots_so_far], pd)
             plots_so_far += 1
 
 
@@ -395,9 +417,9 @@ def test_sample_builder(case_id):
     t = lambda name: sb[name]["text"]  # noqa: E731
     button = [s[1] for s in g["case"]["steps"] if s[0] == "dclick"][-1]
     if button == "button_tab1_01":
-        res = physics.metalCalculateSample(t("textbox_tab102"), t("textbox_tab103"),
-                                           t("textbox_tab104"), t("textbox_tab105"),
-                                           t("textbox_tab101"))
+        res = physics.build_metal_sample(t("textbox_tab102"), t("textbox_tab103"),
+                                         t("textbox_tab104"), t("textbox_tab105"),
+                                         t("textbox_tab101"))
         message = "ERROR" in res
         diag = "textbox_tab106"
     else:

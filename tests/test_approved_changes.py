@@ -34,6 +34,7 @@ def test_F1_rows_use_their_own_material():
         else:
             assert math.isclose(float(v["new"]), mux, abs_tol=0.05), v
 
+
 def test_F2_matches_xraydb_ionchamber_fluxes():
     """Each new value = 100 x (1 - transmitted/incident) from xraydb.ionchamber_fluxes, an
     independent implementation of gas-mix attenuation. It assumes 1 atm; mu scales linearly with
@@ -100,3 +101,79 @@ def test_F11_in_memory_materials_identical_to_v3(tmp_path):
             assert new_file.read_bytes() == before, "catmass.physics modified the user file"
         else:
             assert not new_file.exists(), "catmass.physics created a user materials file"
+
+
+# --- F7: invalid input never crashes; each gives a specific message -----------------------
+from catmass import physics  # noqa: E402
+
+PT = ("O568.390524Al378.927016Pt1.000000", "Pt", "L3", "0.38", "2.6")
+BAD_CALCULATIONS = [
+    # (arguments to calculate_result, expected message fragment)
+    (("al2o3", "Al", "K", "0.38", "2.6"), "Sample 'al2o3' is not a valid chemical formula"),
+    (("Al2O3)", "Al", "K", "0.38", "2.6"), "Brackets not matching"),
+    (("Xx2O3", "Al", "K", "0.38", "2.6"), "unknown symbol Xx"),
+    (("Al2O3", "Xx", "K", "0.38", "2.6"), "'Xx' is not an element symbol"),
+    (("Fe2O3", "fe", "K", "0.38", "2.6"), "'fe' is not an element symbol"),
+    (("H2O", "H", "L3", "0.38", "2.6"), "H has no L3 edge"),
+    (("Al2O3", "O", "L3", "0.38", "2.6"), "below the 500 eV minimum"),
+    (("Al2O3", "N/A", "abc", "0.38", "2.6"), "'abc' is not a number"),
+    (("Al2O3", "N/A", "100", "0.38", "2.6"), "must be at least 500 eV"),
+    (PT[:3] + ("abc", "2.6"), "Sample area 'abc' is not a number"),
+    (PT[:3] + ("0", "2.6"), "Sample area must be greater than 0"),
+    (PT[:3] + ("-0.38", "2.6"), "Sample area must be greater than 0"),
+    (PT[:3] + ("0.38", "nan"), "Absorption length 'nan' is not a finite number"),
+    (PT[:3] + ("0.38", "0"), "Absorption length must be greater than 0"),
+    (PT + ("0", "0"), "Sample ratio must be greater than 0"),
+    (PT + ("1", "-9"), "Diluent ratio must be at least 0"),
+    (PT + ("1", "x"), "Diluent ratio 'x' is not a number"),
+]
+
+
+def test_F7_calculation_errors_instead_of_crashes():
+    for args, fragment in BAD_CALCULATIONS:
+        r = physics.calculate_result(*args)  # must not raise
+        assert r["Result"].startswith("ERROR - ") and fragment in r["Result"], (args, r["Result"])
+        assert physics.result_display(r) is None
+        assert physics.diagnostic_text(r, plot=True) == r["Result"]  # v3 showed "Background..."
+
+
+def test_F7_builder_and_dilution_errors_instead_of_crashes():
+    cases = [
+        (physics.dilute_sample, ("Fe2O3", "bn", "1", "9"), "Diluent 'bn' is not a valid"),
+        (physics.dilute_sample, ("Fe2O3", "BN", "x", "9"), "Sample ratio 'x' is not a number"),
+        (physics.build_metal_sample, ("pt", "1", "", "", "SiO2"), "Metal site 1 'pt'"),
+        (physics.build_metal_sample, ("Pt", "1", "", "", "sio2"), "Support 'sio2'"),
+        (physics.build_metal_sample, ("Pt", "abc", "", "", "SiO2"), "'abc' is not a number"),
+        (physics.build_metal_sample, ("Pt", "100", "", "", "SiO2"), "must be less than 100"),
+        (physics.build_metal_sample, ("Pt", "60", "Sn", "50", "SiO2"), "add up to 110 wt%"),
+        (physics.build_complex_sample, ("SiO2", "Si(CH3)4Pt", "", "1", "S"),
+         "Metal Center not in Complex"),
+        (physics.build_complex_sample, ("SiO2", "Rh(CO)2(C5H7O2)", "", "50", "Rh"),
+         "needs 125.4 wt% of this complex"),  # C7H7O4Rh: Rh 39.88 wt%
+        (physics.build_complex_sample, ("SiO2", "Rh(CO)2(C5H7O2)", "", "1", "rh"),
+         "Metal center 'rh' is not an element symbol"),
+    ]
+    for fn, args, fragment in cases:
+        result = fn(*args)  # must not raise
+        text = result[0] if isinstance(result, tuple) else result
+        assert text.startswith("ERROR - ") and fragment in text, (fn.__name__, args, text)
+
+
+def test_F7_panels_and_plot_errors_instead_of_crashes():
+    shown = physics.transmission_panel("7112", "air", "abc", 2, "kapton", "-5", 4, "water", "",
+                                       2, "aluminum", "1", 1)
+    assert "'abc' is not a number" in shown["gas"] and "at least 0" in shown["material"]
+    assert "solvent" not in shown and shown["metal"].endswith("%")
+    shown = physics.transmission_panel("", "air", "10", 2, "kapton", "", 4, "water", "", 2,
+                                       "aluminum", "", 1)
+    assert shown == {"gas": "ERROR - E0 not defined; calculate the sample mass first"}
+    assert "is not a number" in physics.ion_chamber_absorbed("7112", "nitrogen", "helium", -50,
+                                                             760, "Other", "abc")
+    for lower, upper, fragment in (("", "1000", "Lower plot limit not defined"),
+                                   ("-200", "x", "'x' is not a number"),
+                                   ("500", "100", "must be below the upper"),
+                                   ("-20000", "1000", "below 0 eV")):
+        pd = physics.plot_data(*PT, 81.97, 11563.8, lower, upper)
+        assert pd["error"] and fragment in pd["error"], (lower, upper, pd["error"])
+    pd = physics.plot_data(PT[0], "N/A", "11564.5", "0.38", "2.6", 81.98, 11564.5, "-200", "1000")
+    assert pd["error"] is None and pd["fluorescence"]["xlim"] == [10764.5, 12364.5]
