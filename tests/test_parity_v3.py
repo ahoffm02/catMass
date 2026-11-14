@@ -139,7 +139,7 @@ def calc_groups(g):
 CALC_CASES = [c for c in CASES if calc_groups(golden(c))]
 
 
-def check_figure(fig, pd):
+def check_figure(fig, pd, case_id, label):
     ax_e, ax_k, ax_f, ax_g = fig["axes"]
     e, k, f, gl = pd["energy"], pd["k"], pd["fluorescence"], pd["glitches"]
 
@@ -172,12 +172,13 @@ def check_figure(fig, pd):
     assert_same(f["xlim"], ax_f["xlim"], "fluor.xlim")
     assert_same(f["ylim"], ax_f["ylim"], "fluor.ylim")
     band = [c for c in ax_f["collections"] if c["type"] == "PolyCollection"]
-    if f["band"] is None:
-        assert not band, "fluorescence band drawn by v3 but not by the rebuild"
-    else:
+    golden_band = None
+    if band:
         verts = band[0]["paths"][0]
         xs, ys = [v[0] for v in verts], [v[1] for v in verts]
-        assert_same(f["band"], [min(xs), max(xs), max(ys)], "fluor.band")
+        golden_band = [min(xs), max(xs), max(ys)]
+    assert_same(f["band"], expected(case_id, label, "fluorescence band", golden_band),
+                "fluor.band")
 
     if gl is None:
         assert len(ax_k["lines"]) == 2 and not ax_g["lines"], "glitch overlay mismatch"
@@ -261,7 +262,7 @@ def test_calculation_and_plot(case_id):
             else:
                 pd = physics.plot_data(*args)
                 assert pd["error"] is None, pd["error"]
-                check_figure(snap["figures"][plots_so_far], pd)
+                check_figure(snap["figures"][plots_so_far], pd, case_id, label)
             plots_so_far += 1
 
 

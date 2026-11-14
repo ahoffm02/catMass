@@ -107,6 +107,18 @@ CHANGES = {
             {'case': 'core-RhK-CeO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 45 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 10 eV, consider fluorescence'},
         ],
     },
+    "P1": {
+        "finding": None,  # researcher request, not a v3 defect
+        "approved": "researcher, 2026-11-14",
+        "title": "Fluorescence plot: grey band around an 'Other' energy, as for K/L edges",
+        "why": "Consistency: v3 shaded +/-250 eV around the scanned edge's main line, but drew no "
+               "band for an 'Other' energy.",
+        "numbers_changed": False,  # plot shading only
+        "values": [
+            # 'Other' E0 = 11564 eV: band 11564 +/- 250 eV, up to the strongest line (Pt La1)
+            {'case': 'H-other-at-edge-plot', 'snapshot': 'final', 'field': 'fluorescence band', 'v3': None, 'new': [11314.0, 11814.0, 0.818656]},
+        ],
+    },
 }
 
 

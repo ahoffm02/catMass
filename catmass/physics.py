@@ -1066,11 +1066,13 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
     x_xrayf_lines = []
     y_xrayf_lines = []
     xrayf_lines_name = []
+    line_info = []  # (line, element, edge) per line, for colours, legend and hover text
     for i in range(length4):
         for name, line in xraydb.xray_lines(atomicsymbolsall[i], atomicedgesymbolsall[i]).items():
             xrayf_lines_name.append(name + " " + atomicsymbolsall[i] + " " + atomicedgesymbolsall[i])
             x_xrayf_lines.append(line[0])
             y_xrayf_lines.append(line[1])
+            line_info.append((name, str(atomicsymbolsall[i]), str(atomicedgesymbolsall[i])))
 
     energy_xlim = [Enot+delta1, Enot+delta2]
     energy_ylim = [0, max(y)*1.5]
@@ -1088,6 +1090,9 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         own = [i for i, n in enumerate(xrayf_lines_name) if n.endswith(' '+Element+' '+Edge)]
         if Edge not in EDGE_SHELLS:
             centre = float(Edge)
+            # Change P1 (researcher, 2026-11-14): grey band around an "Other" energy too, as
+            # for K/L edges (v3 drew none here)
+            fluorescence_band = [centre-250, centre+250, max(y_xrayf_lines)]
         elif own:
             centre = x_xrayf_lines[max(own, key=lambda i: y_xrayf_lines[i])]
             fluorescence_band = [centre-250, centre+250, max(y_xrayf_lines)]
@@ -1114,7 +1119,10 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
               'edge_labels': list(atomicedgesymbols), 'element_labels': list(atomicsymbols)},
         'fluorescence': {'x': x_xrayf_lines, 'y': y_xrayf_lines, 'names': xrayf_lines_name,
                          'xlim': fluorescence_xlim, 'ylim': fluorescence_ylim,
-                         'band': fluorescence_band},
+                         'band': fluorescence_band,
+                         'line': [n for n, _, _ in line_info],
+                         'element': [e for _, e, _ in line_info],
+                         'edge': [d for _, _, d in line_info]},
         'glitches': glitches,
     }
 

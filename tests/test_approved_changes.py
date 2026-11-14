@@ -218,3 +218,15 @@ def test_F3a_note_states_the_window_v3_actually_used():
         assert re.search(r"± (-?\d+) eV", v["new"]).group(1) == str(last_window), v
         assert re.search(r"± (-?\d+) eV", v["v3"]).group(1) == str(49 - len(grp["retries"])), v
         assert ("step not reliable" in v["new"]) == (last_window <= 0), v
+
+
+def test_P1_other_energy_band():
+    """Band = entered energy +/- 250 eV, height = strongest line; independent of the code path."""
+    for v in CHANGES["P1"]["values"]:
+        energy = float(golden(v["case"])["snapshots"][-1]["main_window"]["textbox14"]["text"])
+        lo, hi, top = v["new"]
+        assert (lo, hi) == (energy - 250, energy + 250)
+        figure = golden(v["case"])["snapshots"][-1]["figures"][0]["axes"][2]
+        heights = [p[1][1] for c in figure["collections"] if c["type"] == "LineCollection"
+                   for p in c["paths"]]
+        assert top == max(heights)
