@@ -214,15 +214,21 @@ class CatMassPage:
             with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder', value='other'):
                 self.text_input(c.holder, 'other_area_cm2', 'Sample area ⊥ beam [cm²]',
                                 f'{calc.DEFAULT_OTHER_AREA_CM2} (default)', 'other_area')
+            # Absorption first, then the tilt that modifies it (researcher 2026-11-14)
+            with ui.row().classes('w-full'):
+                self.text_input(c, 'absorption_length',
+                                'Total absorption μx at E0 + 50 eV, sample ⊥ beam',
+                                f'{calc.DEFAULT_AL} (default)', 'absorption_length')
+            ui.label('Defined for the beam perpendicular to the sample. When the sample is tilted, '
+                     'catMass keeps the same sample mass; the beam then crosses a longer path, so '
+                     'the apparent absorption is μx / sin θ and the edge step is reported along '
+                     'that path.').classes('text-caption').mark('al_help')
             with ui.row().classes('w-full items-center'):
                 ui.switch('Sample tilted to the beam', on_change=self.inputs_changed).bind_value(
                     c.holder, 'angle_on').mark('angle_on')
-                self.text_input(c.holder, 'angle_deg', 'Angle to beam [°]',
-                                f'{calc.DEFAULT_ANGLE_DEG} (default)', 'angle_deg'
+                self.text_input(c.holder, 'angle_deg', 'Angle between beam and sample [°]',
+                                f'{calc.DEFAULT_ANGLE_DEG} (default; 90 = ⊥)', 'angle_deg'
                                 ).bind_visibility_from(c.holder, 'angle_on')
-            with ui.row().classes('w-full'):
-                self.text_input(c, 'absorption_length', 'Total absorption μx at E0 + 50 eV',
-                                f'{calc.DEFAULT_AL} (default)', 'absorption_length')
         ui.button('Calculate sample mass', icon='play_arrow', on_click=self.calculate).props(
             'size=lg').classes('self-center').mark('calculate')
 
@@ -355,12 +361,17 @@ class CatMassPage:
                     ui.label(r.error).classes('text-negative').mark('error')
             else:
                 shown = r.shown
+                tilted = r.tilt_deg is not None
+                path = f' (along the path tilted {r.tilt_deg:.0f}°)' if tilted else ''
                 rows = [('Diluted sample mass', f"{shown['mass']} mg", 'mass'),
-                        ('Estimated edge step', shown['step'] + (
+                        ('Estimated edge step' + path, shown['step'] + (
                             '  (above 1: consider diluting)' if shown['step_red'] else ''), 'step'),
                         ('Sample mass', f"{shown['sample_mass']} mg", 'sample_mass'),
                         ('Diluent mass', f"{shown['diluent_mass']} mg", 'diluent_mass'),
                         ('Edge energy E0', f"{shown['E0']} eV", 'E0')]
+                if tilted:  # v3 relabelled these 'Projected ...' in angle mode
+                    rows.insert(2, ('Apparent absorption μx at E0 + 50 eV' + path,
+                                    f'{r.al_used:.2f}', 'apparent_absorption'))
                 with ui.grid(columns=2).classes('gap-x-6'):
                     for name, value, marker in rows:
                         ui.label(name)

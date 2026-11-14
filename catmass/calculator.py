@@ -150,6 +150,7 @@ class Calculation:
     E0_eV: Optional[float] = None
     area_used_cm2: Optional[float] = None   # projected in angle mode; full precision
     al_used: Optional[float] = None         # along the tilted path in angle mode
+    tilt_deg: Optional[float] = None        # angle used (whole degrees, as v3), None if not tilted
     plot: Optional[dict] = None        # physics.plot_data, or None
     plot_error: str = ''
     plot_args: Optional[tuple] = None  # physics.plot_data inputs except the limits (replot)
@@ -258,7 +259,9 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
     calc = Calculation(ok=True, shown=physics.result_display(r, h.angle_on),
                        diagnostic=physics.diagnostic_text(r, plot=True, angle_mode=h.angle_on),
                        values_used=used, E0_eV=r['Enot'], area_used_cm2=float(area_used),
-                       al_used=float(al_used))
+                       al_used=float(al_used),
+                       tilt_deg=float(round(float(h.angle_deg.strip() or DEFAULT_ANGLE_DEG)))
+                       if h.angle_on else None)
 
     calc.edge_table = edge_table(diluted, element, edge, area_used, al_used, r)
     calc.warnings = window_warnings(diluted, element, edge, r)

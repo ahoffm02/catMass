@@ -314,3 +314,25 @@ async def test_edge_table_and_window_warning_on_screen():
         (table,) = user.find(marker="edge_table").elements
         assert table.rows == expected.edge_table
         assert text(user, "window_warning") == expected.warnings[0]
+
+
+async def test_tilt_shows_apparent_absorption_and_path_label():
+    """mu-x is defined for the sample perpendicular to the beam; tilted, catMass reports the
+    apparent absorption mu-x / sin(theta) and the step along that path (researcher 2026-11-14)."""
+    inp = inputs_from_golden(golden("E-angle30"))  # 7 mm pellet, AL 2.6 default, 30 deg
+    expected = calc.run_calculation(inp)
+    assert expected.tilt_deg == 30.0 and abs(expected.al_used - 2.6 / 0.5) < 1e-12
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        await enter(user, inp)
+        user.find(marker="calculate").click()
+        await user.should_see("Apparent absorption μx at E0 + 50 eV (along the path tilted 30°)")
+        assert text(user, "apparent_absorption") == "5.20"
+        await user.should_see("Estimated edge step (along the path tilted 30°)")
+    inp.holder.angle_on = False
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        await enter(user, inp)
+        user.find(marker="calculate").click()
+        await user.should_see("Values used in this calculation")
+        await user.should_not_see(marker="apparent_absorption")
