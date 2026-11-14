@@ -221,3 +221,76 @@ def test_replot_changes_only_the_plot_range():
     assert r.shown == shown  # the calculation itself is untouched
     calc.replot(r, "abc", "")
     assert r.plot is None and "'abc' is not a number" in r.plot_error
+
+
+# --- Edge-step table and step-window warning (researcher 2026-11-14) ------------------------
+def scan(formula, element, edge="K", energy=""):
+    inp = calc.CalculatorInputs()
+    inp.sample.formula = formula
+    inp.scan.element, inp.scan.edge, inp.scan.other_energy_eV = element, edge, energy
+    return calc.run_calculation(inp)
+
+
+@pytest.mark.parametrize("case_id", ["core-PtL3-Al2O3-1wt", "C-PtAu-SiO2-PtL3",
+                                     "C-MnFe2O4-BN-MnK", "core-FeK-CeO2-0.1wt"])
+def test_edge_table_equals_the_plot_markers(case_id):
+    """Same numbers as the energy plot's edge-step markers, for edges >= 2000 eV, by energy."""
+    r = calc.run_calculation(inputs_from_golden(golden(case_id)))
+    e = r.plot["energy"]
+    expected = sorted(((E, el, sh, label) for E, el, sh, label in
+                       zip(e["edges_E"], e["edges_element"], e["edges_shell"],
+                           e["edges_step_label"]) if E >= physics.MIN_EDGE_ENERGY_EV))
+    got = [(float(row["energy_eV"]), row["element"], row["edge"], row["step"])
+           for row in r.edge_table]
+    assert [(round(E, 1), el, sh, lab) for E, el, sh, lab in expected] == got
+
+
+def test_edge_table_answers_the_one_packing_question():
+    """1 wt% Pt + 1 wt% Pd on SiO2 packed for Pt L3: the Pd K row shows its step there."""
+    r = scan(physics.build_metal_sample("Pt", "1", "Pd", "1", "SiO2"), "Pt", "L3")
+    rows = {(row["element"], row["edge"]): row for row in r.edge_table}
+    assert rows[("Pt", "L3")]["note"] == "scanned edge"
+    assert rows[("Pt", "L3")]["step"] == "{0:0.3f}".format(float(r.shown["step"]))
+    assert float(rows[("Pd", "K")]["step"]) > 0
+    assert all(float(row["energy_eV"]) >= 2000 for row in r.edge_table)
+
+
+def test_edge_table_flags_retry_and_non_positive_steps():
+    r = calc.run_calculation(inputs_from_golden(golden("core-FeK-Al2O3-0.1wt")))
+    (fe,) = [row for row in r.edge_table if (row["element"], row["edge"]) == ("Fe", "K")]
+    assert "Results shows the step after v3's retry loop" in fe["note"]
+    assert "no positive step" in fe["note"]
+
+
+def test_window_warning_examples():
+    """Finding 13: an edge inside the +/-50 eV step window is part of the step."""
+    import xraylib
+    r = scan("PbS", "S")  # Pb M5, 12 eV above S K
+    assert r.warnings == ["Pb M5 edge (2484 eV) lies within the ±50 eV edge-step window, "
+                          "so the edge step includes its jump"]
+    r = scan(physics.build_metal_sample("MnO2", "5", "", "", "CeO2"), "Mn")  # Ce L1, +10 eV
+    ce_l1 = xraylib.EdgeEnergy(58, xraylib.L1_SHELL) * 1000
+    mn_k = xraylib.EdgeEnergy(25, xraylib.K_SHELL) * 1000
+    assert abs(ce_l1 - mn_k) <= 50 and r.warnings and r.warnings[0].startswith("Ce L1 edge")
+    assert scan(physics.build_metal_sample("Pt", "1", "", "", "Al2O3"), "Pt", "L3").warnings == []
+    # "Other" energy at an edge: that edge is the one probed, not an intruder
+    assert scan(physics.build_metal_sample("Pt", "1", "", "", "Al2O3"), "", "Other",
+                "11564").warnings == []
+
+
+def test_window_warning_independent_of_physics_code():
+    """Every edge of every element within 50 eV, listed straight from xraylib."""
+    import xraylib
+    formula, element, edge = "PbS", "S", "K"
+    E0 = xraylib.EdgeEnergy(16, xraylib.K_SHELL) * 1000
+    expected = []
+    for Z in xraylib.CompoundParser(formula)["Elements"]:
+        for name, shell in physics.ALL_EDGE_SHELLS:
+            try:
+                E = xraylib.EdgeEnergy(Z, shell) * 1000
+            except ValueError:
+                continue
+            sym = xraylib.AtomicNumberToSymbol(Z)
+            if (sym, name) != (element, edge) and E > 200 and abs(E - E0) <= 50:
+                expected.append((sym, name, E))
+    assert physics.edges_in_step_window(formula, E0, 50, element, edge) == expected

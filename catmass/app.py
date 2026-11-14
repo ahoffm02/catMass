@@ -371,6 +371,23 @@ class CatMassPage:
                     ui.label(r.diagnostic).classes('text-body2').mark('diagnostic')
                 if r.plot_error:
                     ui.label(r.plot_error).classes('text-negative').mark('plot_error')
+                for warning in r.warnings:  # finding 13: another edge inside the step window
+                    with ui.row().classes('items-center no-wrap'):
+                        ui.icon('warning', color='warning')
+                        ui.label(warning).classes('text-warning').mark('window_warning')
+                with ui.expansion('Edge steps of all edges at this packing (2 keV and above)',
+                                  value=True).classes('w-full').mark('edge_table_expansion'):
+                    ui.label('Each edge of each element, for the sample mass above; the step is '
+                             'calculated at ±50 eV as in v3. Useful to judge whether one packing '
+                             'can serve two edges.').classes('text-caption')
+                    ui.table(columns=[
+                        {'name': c, 'label': label, 'field': c, 'align': align} for c, label, align
+                        in (('element', 'Element', 'left'), ('edge', 'Edge', 'left'),
+                            ('energy_eV', 'Energy [eV]', 'right'),
+                            ('absorption', 'μx above edge', 'right'),
+                            ('step', 'Edge step', 'right'), ('note', 'Note', 'left'))],
+                        rows=r.edge_table).classes('w-full').props('dense flat').mark(
+                        'edge_table')
             with ui.expansion('Values used in this calculation', value=False).classes(
                     'w-full').mark('values_expansion'):
                 ui.table(columns=[{'name': 'quantity', 'label': 'Quantity', 'field': 'quantity',

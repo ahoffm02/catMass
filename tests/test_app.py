@@ -300,3 +300,17 @@ async def test_save_and_open_round_trip():
     loaded = savefile.loads(text)
     assert loaded.calculator.sample == inp.sample
     assert calc.run_calculation(loaded.calculator).shown == calc.run_calculation(inp).shown
+
+
+async def test_edge_table_and_window_warning_on_screen():
+    inp = calc.CalculatorInputs()
+    inp.sample.formula, inp.scan.element = "PbS", "S"
+    expected = calc.run_calculation(inp)
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        await enter(user, inp)
+        user.find(marker="calculate").click()
+        await user.should_see("Edge steps of all edges at this packing")
+        (table,) = user.find(marker="edge_table").elements
+        assert table.rows == expected.edge_table
+        assert text(user, "window_warning") == expected.warnings[0]

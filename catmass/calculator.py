@@ -153,6 +153,8 @@ class Calculation:
     plot: Optional[dict] = None        # physics.plot_data, or None
     plot_error: str = ''
     plot_args: Optional[tuple] = None  # physics.plot_data inputs except the limits (replot)
+    edge_table: list = field(default_factory=list)  # edge steps of all edges at this packing
+    warnings: list = field(default_factory=list)    # e.g. another edge inside the step window
 
 
 def _fail(message, used):
@@ -258,11 +260,50 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
                        values_used=used, E0_eV=r['Enot'], area_used_cm2=float(area_used),
                        al_used=float(al_used))
 
+    calc.edge_table = edge_table(diluted, element, edge, area_used, al_used, r)
+    calc.warnings = window_warnings(diluted, element, edge, r)
+
     # Plot range: set on the Plots tab, not part of the mass calculation, so not listed in
     # "values used" (researcher 2026-11-14)
     calc.plot_args = (diluted, element, edge, area_used, al_used, r['ms'], r['Enot'])
     replot(calc, inp.plot_lower_eV, inp.plot_upper_eV)
     return calc
+
+
+def edge_table(diluted, element, edge, area_used, al_used, r):
+    """Edge steps of every edge (K to M5) of every element at the calculated sample mass, for
+    edges at or above the 2000 eV minimum, by energy (researcher request 2026-11-14: can one
+    packing serve two edges?). Same numbers as the energy plot's edge-step markers."""
+    t = physics.edge_steps_at_packing(diluted, area_used, al_used, r['ms'])
+    rows = []
+    for el, sh, E, mux, step, label in zip(t['element'], t['shell'], t['E'], t['absorption'],
+                                           t['step'], t['step_label']):
+        if E < physics.MIN_EDGE_ENERGY_EV:
+            continue
+        notes = []
+        scanned = (el, sh) == (element, edge) if edge in physics.EDGE_SHELLS else             abs(E - r['Enot']) <= 1
+        if scanned:
+            notes.append('scanned edge' + ('' if r['whilecount'] == 1 else
+                                            "; Results shows the step after v3's retry loop"))
+        if step <= 0:
+            notes.append('no positive step at ±50 eV: background slope larger than the jump')
+        rows.append({'element': el, 'edge': sh, 'energy_eV': f'{E:.1f}',
+                     'absorption': f'{mux:.2f}', 'step': label, 'note': '; '.join(notes),
+                     '_E': E})
+    rows.sort(key=lambda row: row['_E'])
+    for row in rows:
+        del row['_E']
+    return rows
+
+
+def window_warnings(diluted, element, edge, r):
+    """Finding 13 (warning approved for Release 1, 2026-11-14): another edge inside the
+    window used for the edge step adds its jump to the step."""
+    window = physics.retry_window(r['whilecount'])
+    return [f'{el} {sh} edge ({E:.0f} eV) lies within the ±{abs(window)} eV edge-step window, '
+            f'so the edge step includes its jump'
+            for el, sh, E in physics.edges_in_step_window(diluted, r['Enot'], window, element,
+                                                          edge)]
 
 
 def replot(calc: Calculation, lower: str = '', upper: str = '') -> None:

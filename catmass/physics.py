@@ -1061,6 +1061,59 @@ def sample_edge_list(Sample, shells=ALL_EDGE_SHELLS):
     return atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
 
 
+# --- Edge steps of every edge at the calculated packing (all-edges table) --------------------
+def edge_steps_at_packing(Sample, Area, AL, ms, edge_shells=ALL_EDGE_SHELLS):
+    """Estimated edge step of every edge of every element in the sample, for the sample mass
+    `ms` [mg] calculated for the scanned edge: the table behind v3's edge-step markers on the
+    energy plot (calculateResult lines 2711-2723), moved here unchanged so the Results table
+    and the plot use the same numbers.
+
+    Returns lists: element, shell, E [eV], absorption (mu_ave x mass/area at E + 50 eV),
+    step (raw) and step_label (v3's '0.3f' text).
+    """
+    atomicedgesall,atomicsymbolsall,atomicnumbersall,atomicedgesymbolsall = sample_edge_list(Sample,edge_shells)
+    length4 = len(atomicsymbolsall)
+    yedges = [None]* length4
+    muaves = [None]*length4 #list of muave for edge label in E plot
+    Enots = [None]*length4
+    yedges2 = [None]* length4
+    Enots2 = [None]*length4
+    muaves2 = [None]*length4 #list of muave for edge label in E plot
+    for i in range(length4):
+        # XASMassCalc knows K and L1-L3 by name; an M edge is passed as its energy in eV (the
+        # "Other" path), which is the same edge energy (change M8)
+        edge_i = atomicedgesymbolsall[i] if atomicedgesymbolsall[i] in EDGE_SHELLS else repr(float(atomicedgesall[i]))
+        Result1, Enots[i], ms1, yedges[i],muaves[i] = XASMassCalc(Sample, atomicsymbolsall[i], edge_i, Area, AL)
+        muaves[i] =float(muaves[i])*(ms/float(Area))/1000
+        Result2, Enots2[i], ms1, yedges2[i],muaves2[i] = XASMassCalc(Sample, atomicsymbolsall[i], Enots[i], Area, muaves[i])
+        yedges[i]='{0:0.3f}'.format(yedges2[i])
+    return {'element': [str(e) for e in atomicsymbolsall],
+            'shell': [str(e) for e in atomicedgesymbolsall],
+            'E': Enots, 'absorption': muaves, 'step': yedges2, 'step_label': yedges}
+
+
+def edges_in_step_window(Sample, E0, window, Element, Edge, shells=ALL_EDGE_SHELLS):
+    """Other edges of the sample within E0 +/- window [eV]: their jump is part of the
+    calculated edge step (finding 13, warning approved for Release 1, 2026-11-14).
+
+    The scanned edge itself is excluded; for an "Other" energy, an edge within 1 eV of it is
+    taken as the edge being probed (assumption, HC16). Returns [(element, shell, E [eV])].
+    """
+    if window == 0:
+        return []
+    E, symbols, numbers, shell_names = sample_edge_list(Sample, shells)
+    found = []
+    for e, sym, sh in zip(E, symbols, shell_names):
+        sym, sh, e = str(sym), str(sh), float(e)
+        if Edge in EDGE_SHELLS and (sym, sh) == (Element, Edge):
+            continue
+        if Edge not in EDGE_SHELLS and abs(e - E0) <= 1:
+            continue
+        if abs(e - E0) <= abs(window):
+            found.append((sym, sh, e))
+    return found
+
+
 # --- Plot data (calculateResult plot path, lines 2348-2734) ------------------------------------
 def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_dir=GLITCH_DIR,
               edge_shells=ALL_EDGE_SHELLS):
@@ -1116,12 +1169,6 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
     y2  = [None] * length2 #list of zeros fro kspace plot ( should be glitches)
     y3 = [None] * length3 #list of edges from sample
 
-    yedges = [None]* length4
-    muaves = [None]*length4 #list of muave for edge label in E plot
-    Enots = [None]*length4
-    yedges2 = [None]* length4
-    Enots2 = [None]*length4
-    muaves2 = [None]*length4 #list of muave for edge label in E plot
     kspace  = [None] *length2
 
     #kpace plot y values for now
@@ -1179,14 +1226,8 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         fluorescence_xlim = [centre-800, centre+800]
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
 
-    for i in range(length4):
-        # XASMassCalc knows K and L1-L3 by name; an M edge is passed as its energy in eV (the
-        # "Other" path), which is the same edge energy (change M8)
-        edge_i = atomicedgesymbolsall[i] if atomicedgesymbolsall[i] in EDGE_SHELLS else repr(float(atomicedgesall[i]))
-        Result1, Enots[i], ms1, yedges[i],muaves[i] = XASMassCalc(Sample, atomicsymbolsall[i], edge_i, Area, AL)
-        muaves[i] =float(muaves[i])*(ms/float(Area))/1000
-        Result2, Enots2[i], ms1, yedges2[i],muaves2[i] = XASMassCalc(Sample, atomicsymbolsall[i], Enots[i], Area, muaves[i])
-        yedges[i]='{0:0.3f}'.format(yedges2[i])
+    table = edge_steps_at_packing(Sample, Area, AL, ms, edge_shells)
+    Enots, muaves, yedges = table['E'], table['absorption'], table['step_label']
 
     return {
         'error': None,
