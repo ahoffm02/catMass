@@ -17,3 +17,24 @@ authors:
     affiliation: SLAC National Accelerator Laboratory
     orcid: 'https://orcid.org/0000-0002-7682-4108'
 version: 2026.11.1
+preferred-citation:
+  type: article
+  title: >-
+    CatMass: software for calculating optimal sample masses for X-ray absorption
+    spectroscopy experiments involving complex sample compositions
+  authors:
+    - given-names: Jorge E.
+      family-names: Perez-Aguilar
+    - given-names: Ash
+      family-names: Caine
+    - given-names: Simon R.
+      family-names: Bare
+    - given-names: Adam S.
+      family-names: Hoffman
+  journal: Journal of Synchrotron Radiation
+  volume: 30
+  issue: 5
+  start: 1023
+  end: 1029
+  year: 2023
+  doi: 10.1107/S160057752300615X
