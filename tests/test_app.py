@@ -202,7 +202,9 @@ async def test_plot_range_set_on_plots_tab():
         user.find(marker="plot_upper").type("2500")
         user.find(marker="update_plots").click()
         await settle()
-        (energy, _, _) = user.find(ui.plotly).elements
+        # find() returns an unordered set: pick the energy figure by its title
+        (energy,) = [p for p in user.find(ui.plotly).elements
+                     if p.figure["layout"]["title"]["text"] == "Sample absorption"]
         E0 = calc.run_calculation(inputs_from_golden(golden("A-Pt-foil-L3"))).E0_eV
         assert energy.figure["layout"]["xaxis"]["range"][1] == E0 + 2500
 
