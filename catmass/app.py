@@ -627,7 +627,9 @@ def plot_figures(pd, glitch_shown, dark=False):
         else:
             break
         idx = [j for j in in_view if f['element'][j] in members]
-        top = max(idx, key=lambda j: f['y'][j])  # direct label on the strongest line in view
+        # direct label on the strongest line in view; xraydb normalises intensities per edge, so
+        # ties are common (e.g. Pb Ma, Mb, Mg all 1.0): prefer the alpha line
+        top = max(idx, key=lambda j: (f['y'][j], f['line'][j][1:2] == 'a'))
         annotations.append({'x': f['x'][top], 'y': f['y'][top], 'yshift': 14, 'showarrow': False,
                             'text': f"{f['element'][top]} {line_label(f['line'][top])}"})
         xs, ys = [], []
@@ -651,8 +653,9 @@ def plot_figures(pd, glitch_shown, dark=False):
     fluorescence = {'data': data, 'config': config, 'layout': {
         'template': template, 'title': {'text': 'Fluorescence lines of the sample'},
         'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'tickformat': '.0f', 'range': f['xlim']},
-        'yaxis': {'title': {'text': 'Relative line intensity'}, 'range': f['ylim'],
-                  'showticklabels': False},
+        # 15% headroom so the tallest markers and labels are not cut off
+        'yaxis': {'title': {'text': 'Relative line intensity'},
+                  'range': [f['ylim'][0], f['ylim'][1] * 1.15], 'showticklabels': False},
         'shapes': shapes, 'annotations': annotations, 'legend': {'title': {'text': 'Element'}},
         'margin': {'t': 40}}}
     return [energy, kspace, fluorescence]
