@@ -50,7 +50,6 @@ def inputs_from_golden(g):
 
 # v3 behaviors the agreed Release 1 rules replace with an explicit error
 EXPECTED_ERRORS = {
-    "H-area-cleared": "ERROR - Sample Area not Defined",                 # finding 5
     "H-dilution-no-ratio": "ERROR - Dilution Ratio Not Defined",         # finding 6
     "H-dilution-diluent-ratio-only": "ERROR - Dilution Ratio Not Defined",
 }
@@ -127,8 +126,8 @@ def test_defaults_are_used_and_reported():
     assert r.ok
     assert (used(r, "Pellet diameter").value, used(r, "Pellet diameter").source) == ("7 mm", "default")
     assert used(r, "Absorption length at E0 + 50 eV").value == "2.6"
-    assert used(r, "Plot lower limit").value == "-200 eV from E0"
-    assert used(r, "Plot upper limit").value == "1000 eV from E0"
+    # plot range is set on the Plots tab, not part of the calculation (researcher 2026-11-14)
+    assert not any(u.quantity.startswith("Plot") for u in r.values_used)
     assert used(r, "Edge energy E0").source == "calculated"
 
 
@@ -140,8 +139,10 @@ def test_capillary_lengths_in_mm():
 
 
 def test_other_area_required_and_angle_limits():
-    assert calc.run_calculation(pt_foil(holder="other")).error == "ERROR - Sample Area not Defined"
-    assert calc.run_calculation(pt_foil(holder="other", other_area_cm2="0.5")).ok
+    r = calc.run_calculation(pt_foil(holder="other"))  # blank: 1 cm2 default (2026-11-14)
+    assert r.ok and r.area_used_cm2 == 1.0
+    assert (used(r, "Sample area").value, used(r, "Sample area").source) == ("1 cm²", "default")
+    assert calc.run_calculation(pt_foil(holder="other", other_area_cm2="0.5")).area_used_cm2 == 0.5
     assert "at most 90" in calc.run_calculation(pt_foil(angle_on=True, angle_deg="95")).error
     assert "greater than 0" in calc.run_calculation(pt_foil(angle_on=True, angle_deg="0")).error
 
@@ -208,3 +209,15 @@ def test_builders():
     c = calc.ComplexBuilder(support="SiO2", complex="Rh(CO)2(C5H7O2)", complex_wt_percent="2",
                             metal_wt_percent="1", metal_center="Rh")
     assert calc.builder_failed(calc.build_from_complex(c))  # both loadings: v3's message
+
+
+def test_replot_changes_only_the_plot_range():
+    r = calc.run_calculation(pt_foil())
+    assert (r.plot["energy"]["xlim"][0] - r.E0_eV, r.plot["energy"]["xlim"][1] - r.E0_eV) == (
+        -200.0, 1000.0)
+    shown = dict(r.shown)
+    calc.replot(r, "-100", "2500")
+    assert math.isclose(r.plot["energy"]["xlim"][1], r.E0_eV + 2500)
+    assert r.shown == shown  # the calculation itself is untouched
+    calc.replot(r, "abc", "")
+    assert r.plot is None and "'abc' is not a number" in r.plot_error

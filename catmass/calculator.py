@@ -31,6 +31,7 @@ DEFAULT_AL = '2.6'
 DEFAULT_PELLET_MM = '7'
 DEFAULT_CAPILLARY_MM = '3'
 DEFAULT_BED_MM = '10'
+DEFAULT_OTHER_AREA_CM2 = '1'  # researcher 2026-11-14 (was: pre-fill from the previous holder)
 DEFAULT_ANGLE_DEG = '45'
 DEFAULT_PLOT_LOWER_EV = '-200'
 DEFAULT_PLOT_UPPER_EV = '1000'
@@ -60,7 +61,7 @@ class HolderInputs:
     pellet_mm: str = ''
     capillary_mm: str = ''
     bed_mm: str = ''
-    other_area_cm2: str = ''   # the UI pre-fills it once from the previous holder
+    other_area_cm2: str = ''   # blank = 1 cm2 default
     angle_on: bool = False
     angle_deg: str = ''
 
@@ -146,6 +147,7 @@ class Calculation:
     al_used: Optional[float] = None         # along the tilted path in angle mode
     plot: Optional[dict] = None        # physics.plot_data, or None
     plot_error: str = ''
+    plot_args: Optional[tuple] = None  # physics.plot_data inputs except the limits (replot)
 
 
 def _fail(message, used):
@@ -208,10 +210,7 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
             return _fail(error, used)
         area = physics.holder_area('capillary', d, repr(float(bed)/10))  # physics: bed in cm
     else:
-        a = h.other_area_cm2.strip()
-        if a == '':
-            return _fail('ERROR - Sample Area not Defined', used)  # no physical default
-        used.append(Used('Sample area', f"{a} cm²", 'entered'))
+        a = take(h.other_area_cm2, DEFAULT_OTHER_AREA_CM2, 'Sample area', 'cm²')
         error = physics.number_error(a, 'Sample area')
         if error:
             return _fail(error, used)
@@ -254,15 +253,20 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
                        values_used=used, E0_eV=r['Enot'], area_used_cm2=float(area_used),
                        al_used=float(al_used))
 
-    lower = take(inp.plot_lower_eV, DEFAULT_PLOT_LOWER_EV, 'Plot lower limit', 'eV from E0')
-    upper = take(inp.plot_upper_eV, DEFAULT_PLOT_UPPER_EV, 'Plot upper limit', 'eV from E0')
-    pd = physics.plot_data(diluted, element, edge, area_used, al_used, r['ms'], r['Enot'],
-                           lower, upper)
-    if pd['error']:
-        calc.plot_error = pd['error']
-    else:
-        calc.plot = pd
+    # Plot range: set on the Plots tab, not part of the mass calculation, so not listed in
+    # "values used" (researcher 2026-11-14)
+    calc.plot_args = (diluted, element, edge, area_used, al_used, r['ms'], r['Enot'])
+    replot(calc, inp.plot_lower_eV, inp.plot_upper_eV)
     return calc
+
+
+def replot(calc: Calculation, lower: str = '', upper: str = '') -> None:
+    """(Re)compute the plots of a successful calculation for a plot range in eV from E0
+    (blank = -200 / +1000 eV). Sets calc.plot or calc.plot_error."""
+    lower = lower.strip() or DEFAULT_PLOT_LOWER_EV
+    upper = upper.strip() or DEFAULT_PLOT_UPPER_EV
+    pd = physics.plot_data(*calc.plot_args, lower, upper)
+    calc.plot, calc.plot_error = (None, pd['error']) if pd['error'] else (pd, '')
 
 
 # --- Sample Builder -------------------------------------------------------------------------

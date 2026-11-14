@@ -170,13 +170,59 @@ async def test_results_marked_out_of_date_after_an_input_changes():
         await user.should_see(marker="stale")
 
 
-async def test_other_area_prefilled_once_from_previous_holder():
+async def test_other_area_defaults_to_1_cm2():
     async with user_simulation(catmass_app.root) as user:
         await user.open("/")
+        await enter(user, inputs_from_golden(golden("A-Pt-foil-L3")))
         choose(user, "holder", "Other area")
         await settle()
         (area,) = user.find(marker="other_area").elements
-        assert area.value == "0.3848451"  # 7 mm pellet, the default holder
+        assert area.value == "" and area.props["placeholder"] == "1 (default)"
+        user.find(marker="calculate").click()
+        await user.should_see("Values used in this calculation")
+        (table,) = user.find(marker="values_used").elements
+        assert {"quantity": "Sample area", "value": "1 cm²", "source": "default"} in table.rows
+
+
+async def test_header_title_and_values_used_collapsed():
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        assert text(user, "title").startswith("XAS Sample Mass Calculator")
+        await enter(user, inputs_from_golden(golden("A-Pt-foil-L3")))
+        user.find(marker="calculate").click()
+        (expansion,) = user.find(marker="values_expansion").elements
+        assert expansion.value is False  # starts collapsed (researcher 2026-11-14)
+
+
+async def test_plot_range_set_on_plots_tab():
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        await enter(user, inputs_from_golden(golden("A-Pt-foil-L3")))
+        user.find(marker="calculate").click()
+        user.find(marker="plot_upper").type("2500")
+        user.find(marker="update_plots").click()
+        await settle()
+        (energy, _, _) = user.find(ui.plotly).elements
+        E0 = calc.run_calculation(inputs_from_golden(golden("A-Pt-foil-L3"))).E0_eV
+        assert energy.figure["layout"]["xaxis"]["range"][1] == E0 + 2500
+
+
+def contrast(a, b):
+    def lum(h):
+        c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+        c = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    hi, lo = sorted([lum(a), lum(b)], reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_theme_text_contrast():
+    """WCAG AA (4.5:1) for every theme colour used as text or behind white text."""
+    page = {False: "#FFFFFF", True: "#121212"}  # Quasar light page / dark page
+    for dark, colours in catmass_app.THEMES.items():
+        assert contrast("#FFFFFF", colours["primary"]) >= 4.5   # header, buttons
+        assert contrast(colours["negative"], page[dark]) >= 4.5  # error text
+        assert contrast(colours["warning"], page[dark]) >= 4.5   # out-of-date text
 
 
 async def test_save_and_open_round_trip():

@@ -30,6 +30,15 @@ PAPER = ('J. E. Perez-Aguilar, A. Caine, S. R. Bare, A. S. Hoffman, "CatMass: so
 PAPER_DOI = 'https://doi.org/10.1107/S160057752300615X'
 WIDE = 'w-full max-w-4xl'
 
+# Colours (researcher 2026-11-14: SLAC red). Stanford Cardinal Red, CMYK 0-100-65-34, is
+# #8C1515 on screen (identity.stanford.edu, primary colours); its "light" variant #B83A4B is
+# used for fills in dark mode. In dark mode red is a fill colour only: as text on the dark page
+# it would fall below 4.5:1 contrast. tests/test_app.py checks the text colour pairs.
+THEMES = {
+    False: {'primary': '#8C1515', 'negative': '#C10015', 'warning': '#8A5A00'},   # light
+    True: {'primary': '#B83A4B', 'negative': '#FF8A80', 'warning': '#F2C037'},    # dark
+}
+
 
 def copy_into(target, source):
     """Copy dataclass values in place, so widgets bound to `target` see the new values."""
@@ -79,43 +88,51 @@ class CatMassPage:
         self.ic_result = None       # last ion-chamber text
         self.stale = False
         self.dark = ui.dark_mode(False)
+        ui.colors(**THEMES[False])
         self.glitch_shown = {f: shown for f, _, shown in physics.GLITCH_LIBRARY}
         self.materials = calc.material_options()
         self.build()
 
     # --- layout --------------------------------------------------------------------------
     def build(self):
-        with ui.header(elevated=True).classes('items-center justify-between'):
-            with ui.row().classes('items-center gap-2'):
-                ui.label('catMass').classes('text-h5')
-                ui.label(f'XAS sample calculator · {__version__}').classes('text-caption')
-            with ui.row().classes('items-center'):
-                ui.button('Open', icon='folder_open', on_click=self.open_dialog).props('flat color=white')
-                ui.button('Save', icon='save', on_click=self.save).props('flat color=white')
-                ui.switch('Dark', on_change=self.set_dark).props(
-                    'color=white keep-color').mark('dark')
-        with ui.tabs().classes('w-full') as self.tabs:
-            self.t_calc = ui.tab('Calculator', icon='calculate')
-            self.t_builder = ui.tab('Sample Builder', icon='science')
-            self.t_plots = ui.tab('Plots', icon='show_chart')
-            self.t_beam = ui.tab('Beam path & ion chambers', icon='straighten')
-            self.t_about = ui.tab('About', icon='info')
+        # The header stays pinned to the top, with the tabs in it (researcher 2026-11-14)
+        with ui.header(elevated=True).classes('column items-stretch gap-0 q-pa-none'):
+            with ui.row().classes('w-full items-center justify-between px-4 pt-2'):
+                with ui.row().classes('items-center gap-3'):
+                    ui.label('catMass').classes('text-h5')
+                    ui.label(f'XAS Sample Mass Calculator · {__version__}').classes(
+                        'text-caption').mark('title')
+                    # The logos are red and black, so they sit on a white chip (readable on the
+                    # red header and in dark mode)
+                    with ui.row().classes('items-center gap-2 bg-white rounded-borders px-2 py-1'):
+                        ui.image(ASSETS / 'SSRL_logo_2021.png').classes('h-6 w-16').props(
+                            'fit=contain alt="SSRL"')
+                        ui.image(ASSETS / 'co_access_logo_text.png').classes('h-6 w-20').props(
+                            'fit=contain alt="Co-ACCESS"')
+                with ui.row().classes('items-center'):
+                    ui.button('Open', icon='folder_open', on_click=self.open_dialog).props(
+                        'flat color=white')
+                    ui.button('Save', icon='save', on_click=self.save).props('flat color=white')
+                    ui.switch('Dark', on_change=self.set_dark).props(
+                        'color=white keep-color').mark('dark')
+            with ui.tabs().classes('w-full').props(
+                    'dense align=left indicator-color=white active-color=white') as self.tabs:
+                self.t_calc = ui.tab('Calculator', icon='calculate')
+                self.t_builder = ui.tab('Sample Builder', icon='science')
+                self.t_plots = ui.tab('Plots', icon='show_chart')
+                self.t_beam = ui.tab('Beam path & ion chambers', icon='straighten')
+                self.t_about = ui.tab('About', icon='info')
         with ui.tab_panels(self.tabs, value=self.t_calc).classes('w-full'):
             with ui.tab_panel(self.t_calc).classes('items-center'):
                 self.build_calculator()
             with ui.tab_panel(self.t_builder).classes('items-center'):
                 self.build_builder()
             with ui.tab_panel(self.t_plots).classes('items-center'):
-                self.plots = ui.column().classes(WIDE)
-                self.render_plots()
+                self.build_plots()
             with ui.tab_panel(self.t_beam).classes('items-center'):
                 self.build_beam_path()
             with ui.tab_panel(self.t_about).classes('items-center'):
                 self.build_about()
-        with ui.footer().classes('items-center justify-center bg-transparent'):
-            ui.image(ASSETS / 'SSRL_logo_2021.png').classes('h-6 w-auto').props('fit=contain alt="SSRL"')
-            ui.image(ASSETS / 'co_access_logo_text.png').classes('h-6 w-auto').props(
-                'fit=contain alt="Co-ACCESS"')
 
     def text_input(self, obj, attr, label, placeholder='', marker=None, track=True, **kwargs):
         """Text field bound to a dataclass attribute; `track` marks results out of date."""
@@ -155,7 +172,7 @@ class CatMassPage:
                     c.scan, 'edge', value='Other')
         with ui.card().classes(WIDE):
             ui.label('Sample holder and absorption').classes('text-h6')
-            ui.radio(calc.HOLDERS, on_change=self.holder_changed).bind_value(
+            ui.radio(calc.HOLDERS, on_change=self.inputs_changed).bind_value(
                 c.holder, 'holder').props('inline').mark('holder')
             with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder', value='pellet'):
                 self.text_input(c.holder, 'pellet_mm', 'Pellet diameter [mm]',
@@ -169,8 +186,8 @@ class CatMassPage:
                 self.text_input(c.holder, 'bed_mm', 'Bed length [mm]',
                                 f'{calc.DEFAULT_BED_MM} (default)', 'bed_mm')
             with ui.row().classes('w-full').bind_visibility_from(c.holder, 'holder', value='other'):
-                self.text_input(c.holder, 'other_area_cm2', 'Sample area ⊥ beam [cm²]', 'required',
-                                'other_area')
+                self.text_input(c.holder, 'other_area_cm2', 'Sample area ⊥ beam [cm²]',
+                                f'{calc.DEFAULT_OTHER_AREA_CM2} (default)', 'other_area')
             with ui.row().classes('w-full items-center'):
                 ui.switch('Sample tilted to the beam', on_change=self.inputs_changed).bind_value(
                     c.holder, 'angle_on').mark('angle_on')
@@ -266,11 +283,6 @@ class CatMassPage:
 
     def build_about(self):
         with ui.card().classes(WIDE):
-            with ui.row().classes('items-center gap-6'):
-                ui.image(ASSETS / 'SSRL_logo_2021.png').classes('h-12 w-40').props(
-                    'fit=contain alt="SSRL"')
-                ui.image(ASSETS / 'co_access_logo_text.png').classes('h-12 w-40').props(
-                    'fit=contain alt="Co-ACCESS"')
             ui.label(f'catMass {__version__}').classes('text-h6')
             ui.markdown(
                 'Calculates the sample mass for a transmission XAS measurement from the sample '
@@ -335,7 +347,8 @@ class CatMassPage:
                     ui.label(r.diagnostic).classes('text-body2').mark('diagnostic')
                 if r.plot_error:
                     ui.label(r.plot_error).classes('text-negative').mark('plot_error')
-            with ui.expansion('Values used in this calculation', value=True).classes('w-full'):
+            with ui.expansion('Values used in this calculation', value=False).classes(
+                    'w-full').mark('values_expansion'):
                 ui.table(columns=[{'name': 'quantity', 'label': 'Quantity', 'field': 'quantity',
                                    'align': 'left'},
                                   {'name': 'value', 'label': 'Value', 'field': 'value',
@@ -345,23 +358,50 @@ class CatMassPage:
                          rows=[vars(u) for u in r.values_used]).classes('w-full').props(
                     'dense flat').mark('values_used')
 
+    def build_plots(self):
+        """Plots tab: controls built once (they must not be deleted by their own handlers);
+        messages and figures are redrawn by render_plots."""
+        c = self.s.calculator
+        with ui.column().classes(WIDE):
+            self.plot_messages = ui.column().classes('w-full')
+            with ui.column().classes('w-full') as self.plot_controls:
+                with ui.row().classes('items-center'):
+                    ui.input('Plot from [eV from E0]',
+                             placeholder=f'{calc.DEFAULT_PLOT_LOWER_EV} (default)').bind_value(
+                        c, 'plot_lower_eV').classes('w-44').mark('plot_lower')
+                    ui.input('Plot to [eV from E0]',
+                             placeholder=f'{calc.DEFAULT_PLOT_UPPER_EV} (default)').bind_value(
+                        c, 'plot_upper_eV').classes('w-44').mark('plot_upper')
+                    ui.button('Update plots', icon='refresh', on_click=self.update_plots).mark(
+                        'update_plots')
+                with ui.row().classes('items-center'):
+                    ui.label('Glitch overlay:')
+                    for f, label, _ in physics.GLITCH_LIBRARY:
+                        ui.checkbox(label, value=self.glitch_shown[f],
+                                    on_change=lambda e, f=f: self.set_glitch(f, e.value))
+            self.figures = ui.column().classes('w-full')
+        self.render_plots()
+
     def render_plots(self):
-        self.plots.clear()
-        with self.plots:
-            r = self.result
-            if r is None or not r.ok or r.plot is None:
-                ui.label('Calculate a sample to see its plots.' if r is None or r.ok else
-                         'No plots: the last calculation did not succeed.')
-                if r is not None and r.plot_error:
-                    ui.label(r.plot_error).classes('text-negative')
-                return
-            if self.stale:
-                ui.label('Inputs have changed since these plots were made.').classes('text-warning')
-            with ui.row().classes('items-center'):
-                ui.label('Glitch overlay:')
-                for f, label, _ in physics.GLITCH_LIBRARY:
-                    ui.checkbox(label, value=self.glitch_shown[f],
-                                on_change=lambda e, f=f: self.set_glitch(f, e.value))
+        r = self.result
+        ok = r is not None and r.ok
+        self.plot_controls.set_visibility(ok)  # stays usable when only the plot range is bad
+        self.plot_messages.clear()
+        self.figures.clear()
+        with self.plot_messages:
+            if r is None:
+                ui.label('Calculate a sample to see its plots.')
+            elif not r.ok:
+                ui.label('No plots: the last calculation did not succeed.')
+            else:
+                if self.stale:
+                    ui.label('Inputs have changed since these plots were made.').classes(
+                        'text-warning')
+                if r.plot_error:
+                    ui.label(r.plot_error).classes('text-negative').mark('plot_range_error')
+        if not ok or r.plot is None:
+            return
+        with self.figures:
             for figure in plot_figures(r.plot, self.glitch_shown, self.dark.value):
                 ui.plotly(figure).classes('w-full h-96')
             with ui.row():
@@ -372,7 +412,13 @@ class CatMassPage:
 
     def set_dark(self, e):
         self.dark.set_value(e.value)
+        ui.colors(**THEMES[bool(e.value)])
         self.render_plots()  # plot colours follow the theme
+
+    def update_plots(self):
+        c = self.s.calculator
+        calc.replot(self.result, c.plot_lower_eV, c.plot_upper_eV)
+        self.render_plots()
 
     def set_glitch(self, file, shown):
         self.glitch_shown[file] = shown
@@ -384,19 +430,6 @@ class CatMassPage:
             self.stale = True
             self.render_results()
             self.render_plots()
-
-    def holder_changed(self, e):
-        """Switching to "Other" pre-fills the area once from the holder selected before."""
-        h = self.s.calculator.holder
-        previous = getattr(self, '_last_holder', 'pellet')
-        if e.value == 'other' and previous != 'other' and h.other_area_cm2.strip() == '':
-            probe = calc.CalculatorInputs(holder=calc.HolderInputs(
-                previous, pellet_mm=h.pellet_mm, capillary_mm=h.capillary_mm, bed_mm=h.bed_mm))
-            area = holder_area_of(probe)
-            if area is not None:
-                h.other_area_cm2 = f'{area:.8g}'
-        self._last_holder = e.value
-        self.inputs_changed()
 
     def calculate(self):
         self.result = calc.run_calculation(self.s.calculator)
@@ -477,42 +510,54 @@ class CatMassPage:
             self.update_label.set_text(f'catMass {tag} is available at {REPO_URL}/releases')
 
 
-def holder_area_of(inp: calc.CalculatorInputs):
-    """Area [cm2] of the holder in `inp` using the agreed defaults, or None if invalid."""
-    h = inp.holder
-    try:
-        if h.holder == 'pellet':
-            return physics.holder_area('pellet', pellet_mm=h.pellet_mm.strip() or
-                                       calc.DEFAULT_PELLET_MM)
-        if h.holder == 'capillary':
-            bed = float(h.bed_mm.strip() or calc.DEFAULT_BED_MM)
-            return physics.holder_area('capillary', h.capillary_mm.strip() or
-                                       calc.DEFAULT_CAPILLARY_MM, repr(bed/10))
-    except ValueError:
-        return None
-    return None
+# Categorical colours: the dataviz reference palette, unchanged (validated there, light and dark
+# columns). Colour follows the element (order of first appearance in the sample), never its rank.
+# Only the first three slots stay distinct in every pairing (colour-vision deficiency included),
+# so each element also gets its own marker shape, and the legend names every element.
+SERIES = {False: ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7',
+                  '#e34948'],
+          True: ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9',
+                 '#e66767']}
+OTHER_GRAY = {False: '#8a8987', True: '#9a9993'}  # beyond eight elements: one "Other" series
+SYMBOLS = ['circle', 'square', 'diamond', 'triangle-up', 'triangle-down', 'star', 'hexagon',
+           'cross']
+GREEK = {'a': 'α', 'b': 'β', 'g': 'γ', 'l': 'ℓ', 'n': 'η', 'e': 'ε', 's': 'σ', 't': 'τ', 'u': 'υ',
+         'v': 'ν'}
+
+
+def line_label(name):
+    """xraydb line name to the usual notation, e.g. 'Ka1' -> 'Kα1', 'Lb2,15' -> 'Lβ2,15'."""
+    if len(name) > 1 and name[1] in GREEK:
+        return name[0] + GREEK[name[1]] + name[2:]
+    return name
 
 
 def plot_figures(pd, glitch_shown, dark=False):
     """Three Plotly figures (energy, k, fluorescence) from physics.plot_data output."""
     template = 'plotly_dark' if dark else 'plotly_white'
+    colours = SERIES[dark]
     config = {'displaylogo': False, 'responsive': True,
               'toImageButtonOptions': {'format': 'png', 'filename': 'catmass_plot', 'scale': 2}}
     e, k, f, gl = pd['energy'], pd['k'], pd['fluorescence'], pd['glitches'] or []
     shown = [g for g in gl if glitch_shown.get(g['file'])]
+    # each glitch file keeps its own colour (slots 3-6), whether or not the others are shown
+    glitch_colour = {fname: colours[2 + i] for i, (fname, _, _) in enumerate(physics.GLITCH_LIBRARY)}
 
     data = [{'type': 'scatter', 'mode': 'lines', 'x': list(e['x']), 'y': list(e['y']),
-             'name': 'Total sample absorption'},
+             'name': 'Total sample absorption', 'line': {'color': colours[0], 'width': 2},
+             'hovertemplate': '%{x:.1f} eV<br>absorption %{y:.3f}<extra></extra>'},
             {'type': 'scatter', 'mode': 'markers+text', 'x': list(e['edges_E']),
              'y': list(e['edges_absorption']), 'text': list(e['edges_step_label']),
              'textposition': 'top center', 'name': 'Estimated edge step(s)',
-             'hovertext': [f'{el} {sh}: step {st}' for el, sh, st in
-                           zip(e['edges_element'], e['edges_shell'], e['edges_step_label'])]}]
+             'marker': {'color': colours[1], 'size': 9},
+             'customdata': [f'{el} {sh}' for el, sh in zip(e['edges_element'], e['edges_shell'])],
+             'hovertemplate': '%{customdata} edge, %{x:.1f} eV<br>step %{text}<extra></extra>'}]
     data += [{'type': 'scatter', 'mode': 'lines', 'x': g['E_x'], 'y': g['E_y'], 'yaxis': 'y2',
-              'name': g['label'], 'line': {'width': 1}} for g in shown]
+              'name': g['label'], 'line': {'width': 1, 'color': glitch_colour[g['file']]},
+              'hoverinfo': 'skip'} for g in shown]
     energy = {'data': data, 'config': config, 'layout': {
         'template': template, 'title': {'text': 'Sample absorption'},
-        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'range': e['xlim']},
+        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'tickformat': '.0f', 'range': e['xlim']},
         'yaxis': {'title': {'text': 'Sample absorption (μ<sub>average</sub> · mass/area)'},
                   'range': e['ylim']},
         'yaxis2': {'overlaying': 'y', 'side': 'right', 'range': [-7, 7], 'showticklabels': False,
@@ -522,37 +567,69 @@ def plot_figures(pd, glitch_shown, dark=False):
     labels = [f'{el} {ed}' for el, ed in zip(k['element_labels'], k['edge_labels'])]
     data = [{'type': 'scatter', 'mode': 'markers+text', 'x': list(k['edges_k']),
              'y': list(k['edges_y']), 'text': labels, 'textposition': 'top center',
-             'name': 'Other edges in the scan range'}]
+             'name': 'Other edges in the scan range', 'marker': {'color': colours[1], 'size': 9},
+             'hovertemplate': '%{text} edge, k = %{x:.2f} Å⁻¹<extra></extra>'}]
     data += [{'type': 'scatter', 'mode': 'lines', 'x': g['k_x'], 'y': g['k_y'], 'name': g['label'],
-              'line': {'width': 1}} for g in shown]
+              'line': {'width': 1, 'color': glitch_colour[g['file']]}, 'hoverinfo': 'skip'}
+             for g in shown]
     kspace = {'data': data, 'config': config, 'layout': {
         'template': template, 'title': {'text': 'Edges and glitches in k'},
         'xaxis': {'title': {'text': 'k (Å<sup>-1</sup>)'}, 'range': k['xlim']},
         'yaxis': {'title': {'text': 'Glitch amplitude (%)'}, 'range': [-7, 7]},
         'legend': {'orientation': 'h', 'y': -0.25}, 'margin': {'t': 40}}}
 
-    xs, ys = [], []
-    for x, y in zip(f['x'], f['y']):
-        xs += [x, x, None]
-        ys += [0, y, None]
-    data = [{'type': 'scatter', 'mode': 'lines', 'x': xs, 'y': ys, 'name': 'Fluorescence lines',
-             'hoverinfo': 'skip'},
-            {'type': 'scatter', 'mode': 'markers', 'x': list(f['x']), 'y': list(f['y']),
-             'hovertext': list(f['names']), 'name': 'Line', 'marker': {'size': 5},
-             'showlegend': False}]
+    # Fluorescence lines: one series per element (researcher 2026-11-14). Intensities are only
+    # relative, so the y axis has no values and the hover text gives line and energy only.
+    # Only elements with a line inside the plotted window get a series (and a legend entry);
+    # colours follow the order of first appearance among those.
+    lo, hi = f['xlim']
+    in_view = [j for j, x in enumerate(f['x']) if lo <= x <= hi]
+    elements = list(dict.fromkeys(f['element'][j] for j in in_view))
+    data, annotations = [], []
+    for i, element in enumerate(elements):
+        if i < len(colours):
+            name, colour, symbol, members = element, colours[i], SYMBOLS[i], {element}
+        elif i == len(colours):
+            name, colour, symbol, members = 'Other elements', OTHER_GRAY[dark], 'circle-open', \
+                set(elements[len(colours):])
+        else:
+            break
+        idx = [j for j in in_view if f['element'][j] in members]
+        top = max(idx, key=lambda j: f['y'][j])  # direct label on the strongest line in view
+        annotations.append({'x': f['x'][top], 'y': f['y'][top], 'yshift': 14, 'showarrow': False,
+                            'text': f"{f['element'][top]} {line_label(f['line'][top])}"})
+        xs, ys = [], []
+        for j in idx:
+            xs += [f['x'][j], f['x'][j], None]
+            ys += [0, f['y'][j], None]
+        data.append({'type': 'scatter', 'mode': 'lines', 'x': xs, 'y': ys, 'name': name,
+                     'legendgroup': name, 'line': {'color': colour, 'width': 2},
+                     'hoverinfo': 'skip'})
+        data.append({'type': 'scatter', 'mode': 'markers', 'x': [f['x'][j] for j in idx],
+                     'y': [f['y'][j] for j in idx], 'name': name, 'legendgroup': name,
+                     'showlegend': False, 'marker': {'color': colour, 'size': 9, 'symbol': symbol},
+                     'customdata': [f"{f['element'][j]} {line_label(f['line'][j])} "
+                                    f"({f['edge'][j]} edge)" for j in idx],
+                     'hovertemplate': '%{customdata}<br>%{x:.0f} eV<extra></extra>'})
     shapes = []
     if f['band']:
         shapes.append({'type': 'rect', 'x0': f['band'][0], 'x1': f['band'][1], 'y0': 0,
-                       'y1': f['band'][2], 'fillcolor': 'gray', 'opacity': 0.15, 'line': {'width': 0}})
+                       'y1': f['band'][2], 'fillcolor': 'gray', 'opacity': 0.15,
+                       'line': {'width': 0}, 'layer': 'below'})
     fluorescence = {'data': data, 'config': config, 'layout': {
         'template': template, 'title': {'text': 'Fluorescence lines of the sample'},
-        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'range': f['xlim']},
-        'yaxis': {'title': {'text': 'Line intensity'}, 'range': f['ylim']},
-        'shapes': shapes, 'showlegend': False, 'margin': {'t': 40}}}
+        'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'tickformat': '.0f', 'range': f['xlim']},
+        'yaxis': {'title': {'text': 'Relative line intensity'}, 'range': f['ylim'],
+                  'showticklabels': False},
+        'shapes': shapes, 'annotations': annotations, 'legend': {'title': {'text': 'Element'}},
+        'margin': {'t': 40}}}
     return [energy, kspace, fluorescence]
 
 
 def root():
+    # Keep labels above the fields so the grey "(default)" placeholders are always visible;
+    # Quasar otherwise shows a placeholder only while the field has focus.
+    ui.input.default_props('stack-label')
     CatMassPage()
 
 
