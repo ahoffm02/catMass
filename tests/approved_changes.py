@@ -119,6 +119,19 @@ CHANGES = {
             {'case': 'H-other-at-edge-plot', 'snapshot': 'final', 'field': 'fluorescence band', 'v3': None, 'new': [11314.0, 11814.0, 0.818656]},
         ],
     },
+    "M8": {
+        "finding": 8,
+        "approved": "researcher, 2026-11-14 (M edges needed in Release 1)",
+        "title": "M1-M5 edges in the competing-edge table, k panel and fluorescence lines",
+        "why": "v3 listed K and L1-L3 only. M edges of heavy elements lie at 2-5.5 keV (e.g. Pb "
+               "M5 2484 eV, 12 eV above S K; Pt M 2.1-3.3 keV) and their M lines (e.g. Pb Ma "
+               "2342 eV next to S Ka) compete in low-energy work.",
+        "numbers_changed": True,  # added entries; every v3 entry is unchanged
+        "rule": "With v3's edges (K to L3) every value equals the golden file. The full output is "
+                "v3's entries plus the M entries, in v3's order; each M edge energy equals "
+                "xraylib EdgeEnergy and each M line equals xraydb xray_lines.",
+        "values": [],
+    },
 }
 
 

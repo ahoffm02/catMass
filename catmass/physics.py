@@ -985,8 +985,85 @@ def glitch_overlay(Enot, start, stop, glitch_dir=GLITCH_DIR):
         return None
 
 
+# --- Edge lists with M edges (change M8, researcher 2026-11-14) -------------------------------
+# v3 listed K and L1-L3 edges only (XASEZero / XASEZeroList, kept verbatim above). M edges of
+# heavy elements fall at 2-5.5 keV (e.g. Pb M5 2484 eV, 12 eV from S K; Pt M5-M1 2.1-3.3 keV),
+# so they compete with low-energy work. N and O edges are all below ~1.5 keV, under catMass's
+# 2000 eV minimum, and are not listed.
+V3_EDGE_SHELLS = [('K', xraylib.K_SHELL), ('L1', xraylib.L1_SHELL), ('L2', xraylib.L2_SHELL),
+                  ('L3', xraylib.L3_SHELL)]
+M_EDGE_SHELLS = [('M1', xraylib.M1_SHELL), ('M2', xraylib.M2_SHELL), ('M3', xraylib.M3_SHELL),
+                 ('M4', xraylib.M4_SHELL), ('M5', xraylib.M5_SHELL)]
+ALL_EDGE_SHELLS = V3_EDGE_SHELLS + M_EDGE_SHELLS
+
+
+def sample_edges_above(Sample, Enot, shells=ALL_EDGE_SHELLS):
+    """XASEZero for the given edges: every edge of the sample's elements above E0 [eV].
+
+    Same steps and return values as XASEZero (reference lines 4123-4157); with
+    shells=V3_EDGE_SHELLS the result is identical to it (tested).
+    """
+    Elements = xraylib.CompoundParser(Sample)
+    atomicnumbers=[]
+    atomicsymbols=[]
+    atomicedges=[]
+    atomicedgesymbols=[]
+    kspaceedges = []
+
+    for i in range(0,Elements['nElements']):
+        atomicnumber = Elements['Elements'][i]
+        atomicsymbol = xraylib.AtomicNumberToSymbol(atomicnumber)
+        for name, shell in shells:
+            try:
+                atomicedge = xraylib.EdgeEnergy(atomicnumber,shell)*1000-Enot
+            except:
+                atomicedge = 0
+
+            if atomicedge > 0:
+                kspaceedge = kspacecalc(atomicedge)
+                kspaceedges= np.append(kspaceedges, kspaceedge)
+                atomicedges = np.append(atomicedges, atomicedge+Enot)
+                atomicsymbols = np.append(atomicsymbols, atomicsymbol)
+                atomicnumbers = np.append(atomicnumbers, atomicnumber)
+                atomicedgesymbols = np.append(atomicedgesymbols, name)
+
+    return kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
+
+
+def sample_edge_list(Sample, shells=ALL_EDGE_SHELLS):
+    """XASEZeroList for the given edges: every edge of the sample's elements above 200 eV.
+
+    Same steps and return values as XASEZeroList (reference lines 4159-4187); with
+    shells=V3_EDGE_SHELLS the result is identical to it (tested).
+    """
+    Elements = xraylib.CompoundParser(Sample)
+    atomicnumbers=[]
+    atomicsymbols=[]
+    atomicedges=[]
+    atomicedgesymbols=[]
+
+    for i in range(0,Elements['nElements']):
+        atomicnumber = Elements['Elements'][i]
+        atomicsymbol = xraylib.AtomicNumberToSymbol(atomicnumber)
+        for name, shell in shells:
+            try:
+                if xraylib.EdgeEnergy(atomicnumber,shell)*1000-100 <=0 or xraylib.EdgeEnergy(atomicnumber,shell)*1000 <=200:
+                    pass
+                else:
+                    atomicedge = xraylib.EdgeEnergy(atomicnumber,shell)*1000
+                    atomicedges = np.append(atomicedges, atomicedge)
+                    atomicsymbols = np.append(atomicsymbols, atomicsymbol)
+                    atomicnumbers = np.append(atomicnumbers, atomicnumber)
+                    atomicedgesymbols = np.append(atomicedgesymbols, name)
+            except:
+                pass
+
+    return atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols
+
+
 # --- Plot data (calculateResult plot path, lines 2348-2734) ------------------------------------
-def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_dir=GLITCH_DIR):
+def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_dir=GLITCH_DIR,
+              edge_shells=ALL_EDGE_SHELLS):
     """Everything v3's three-panel plot shows, as data (no plotting library needed).
 
     Sample..AL: as for calculate_result (in angle mode v3 passes the projected AL as a string);
@@ -1014,9 +1091,10 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
     if Enot + float(lower) <= 0:
         return {'error': "ERROR - Lower plot limit reaches below 0 eV photon energy"}
 
-    kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols = XASEZero(Sample,Enot)
+    # Change M8: edges from K to M5 (edge_shells); v3 used XASEZero / XASEZeroList (K to L3)
+    kspaceedges, atomicedges,atomicsymbols,atomicnumbers,atomicedgesymbols = sample_edges_above(Sample,Enot,edge_shells)
 
-    atomicedgesall,atomicsymbolsall,atomicnumbersall,atomicedgesymbolsall = XASEZeroList(Sample)
+    atomicedgesall,atomicsymbolsall,atomicnumbersall,atomicedgesymbolsall = sample_edge_list(Sample,edge_shells)
 
     #ploting limits
     delta1 = float(lower)
@@ -1102,7 +1180,10 @@ def plot_data(Sample, Element, Edge, Area, AL, ms, Enot, lower, upper, glitch_di
         fluorescence_ylim = [0, max(y_xrayf_lines)*1]
 
     for i in range(length4):
-        Result1, Enots[i], ms1, yedges[i],muaves[i] = XASMassCalc(Sample, atomicsymbolsall[i], atomicedgesymbolsall[i], Area, AL)
+        # XASMassCalc knows K and L1-L3 by name; an M edge is passed as its energy in eV (the
+        # "Other" path), which is the same edge energy (change M8)
+        edge_i = atomicedgesymbolsall[i] if atomicedgesymbolsall[i] in EDGE_SHELLS else repr(float(atomicedgesall[i]))
+        Result1, Enots[i], ms1, yedges[i],muaves[i] = XASMassCalc(Sample, atomicsymbolsall[i], edge_i, Area, AL)
         muaves[i] =float(muaves[i])*(ms/float(Area))/1000
         Result2, Enots2[i], ms1, yedges2[i],muaves2[i] = XASMassCalc(Sample, atomicsymbolsall[i], Enots[i], Area, muaves[i])
         yedges[i]='{0:0.3f}'.format(yedges2[i])

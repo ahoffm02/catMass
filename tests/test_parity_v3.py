@@ -52,6 +52,8 @@ VERBATIM = ["XASMassCalc", "XASPLOTTER", "XASStoichCalc", "metalCalculateSample"
             "unitconvert", "ionchamberdensity"]
 LIBRARY_CALLS = {"material_mu": xraydb.material_mu, "xray_lines": xraydb.xray_lines}
 CALC_FNS = {"XASMassCalc", "XASEZero", "XASEZeroList", "xray_lines"}
+# v3 listed K and L1-L3 edges only; change M8 adds M1-M5 (checked in test_approved_changes.py)
+V3_SHELLS = physics.V3_EDGE_SHELLS
 
 
 def fmt2(v):
@@ -251,16 +253,16 @@ def test_calculation_and_plot(case_id):
                 crash = f"{v3_crash[0]['type']}: {v3_crash[0]['message']}"
                 want = expected(case_id, label, "plot", crash)
                 if want == crash:
-                    assert raised(physics.plot_data, *args) == crash, f"{where} plot crash"
+                    assert raised(physics.plot_data, *args, edge_shells=V3_SHELLS) == crash, f"{where} plot crash"
                 else:  # approved change: the plot now works where v3 crashed
-                    pd = physics.plot_data(*args)
+                    pd = physics.plot_data(*args, edge_shells=V3_SHELLS)
                     assert pd["error"] is None, pd["error"]
                     assert_same(pd["fluorescence"]["xlim"], want["fluorescence_xlim"], where)
                     drawn = snap["figures"][plots_so_far]["axes"][0]["lines"][0]
                     assert_same(pd["energy"]["x"], drawn["x"], f"{where} energy.x (v3 partial)")
                     assert_same(pd["energy"]["y"], drawn["y"], f"{where} energy.y (v3 partial)")
             else:
-                pd = physics.plot_data(*args)
+                pd = physics.plot_data(*args, edge_shells=V3_SHELLS)
                 assert pd["error"] is None, pd["error"]
                 check_figure(snap["figures"][plots_so_far], pd, case_id, label)
             plots_so_far += 1

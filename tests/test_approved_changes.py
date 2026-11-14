@@ -230,3 +230,77 @@ def test_P1_other_energy_band():
         heights = [p[1][1] for c in figure["collections"] if c["type"] == "LineCollection"
                    for p in c["paths"]]
         assert top == max(heights)
+
+
+# --- M8: M edges ----------------------------------------------------------------------------
+def plot_cases():
+    from tests.test_parity_v3 import CALC_CASES, calc_groups
+    for case_id in CALC_CASES:
+        g = golden(case_id)
+        grp = calc_groups(g)[-1]
+        mw = grp["snapshot"]["main_window"] if grp["snapshot"] else None
+        if mw is None or not mw["b1"]["checked"] or "raised" in grp["main"] or g["exceptions"]:
+            continue
+        if "ERROR" in grp["main"]["result"][0]:
+            continue
+        yield case_id, grp, mw
+
+
+def test_M8_edge_lists_with_v3_shells_equal_v3():
+    import numpy as np
+    for case_id, grp, _ in plot_cases():
+        sample, E0 = grp["main"]["args"][0], grp["main"]["result"][1]
+        for a, b in zip(physics.XASEZero(sample, E0),
+                        physics.sample_edges_above(sample, E0, physics.V3_EDGE_SHELLS)):
+            assert np.array_equal(a, b), case_id
+        for a, b in zip(physics.XASEZeroList(sample),
+                        physics.sample_edge_list(sample, physics.V3_EDGE_SHELLS)):
+            assert np.array_equal(a, b), case_id
+
+
+def test_M8_adds_exactly_the_M_edges_and_lines():
+    import xraylib
+    v3_names = {n for n, _ in physics.V3_EDGE_SHELLS}
+    m_shells = dict(physics.M_EDGE_SHELLS)
+    checked_m = 0
+    for case_id, grp, mw in plot_cases():
+        Sample, Element, Edge, Area, AL = grp["main"]["args"]
+        r = physics.calculate_result(*grp["main"]["args"])
+        args = (Sample, Element, Edge, Area, str(float(AL)) if mw["b2"]["checked"] else AL,
+                r["ms"], r["Enot"], mw["textbox11"]["text"], mw["textbox12"]["text"])
+        v3 = physics.plot_data(*args, edge_shells=physics.V3_EDGE_SHELLS)
+        new = physics.plot_data(*args)
+        e3, en = v3["energy"], new["energy"]
+        keep = [i for i, sh in enumerate(en["edges_shell"]) if sh in v3_names]
+        for key in ("edges_E", "edges_absorption", "edges_step_label", "edges_element"):
+            assert [en[key][i] for i in keep] == list(e3[key]), (case_id, key)
+        for i, (el, sh) in enumerate(zip(en["edges_element"], en["edges_shell"])):
+            if sh in m_shells:  # independent check of every added edge energy
+                Z = xraylib.SymbolToAtomicNumber(el)
+                assert en["edges_E"][i] == xraylib.EdgeEnergy(Z, m_shells[sh]) * 1000
+                checked_m += 1
+        f3, fn = v3["fluorescence"], new["fluorescence"]
+        keep = [i for i, d in enumerate(fn["edge"]) if d in v3_names]
+        assert [fn["x"][i] for i in keep] == list(f3["x"]), case_id
+        for el, ed in {(el, ed) for el, ed in zip(fn["element"], fn["edge"]) if ed in m_shells}:
+            expected = sorted(l.energy for l in xraydb.xray_lines(el, ed).values())
+            got = sorted(x for x, e2, d in zip(fn["x"], fn["element"], fn["edge"])
+                         if e2 == el and d == ed)
+            assert got == expected, (case_id, el, ed)
+    assert checked_m > 0
+
+
+def test_M8_lead_M5_next_to_sulfur_K():
+    """The motivating case: PbS at S K. Pb M5 (2484 eV) is 12 eV above S K (2472 eV)."""
+    r = physics.calculate_result("PbS", "S", "K", "0.38", "2.6")
+    pd = physics.plot_data("PbS", "S", "K", "0.38", "2.6", r["ms"], r["Enot"], "-200", "800")
+    edges = dict(((el, sh), E) for el, sh, E in zip(pd["energy"]["edges_element"],
+                                                    pd["energy"]["edges_shell"],
+                                                    pd["energy"]["edges_E"]))
+    assert round(edges[("Pb", "M5")]) == 2484 and round(edges[("S", "K")]) == 2472
+    assert "Pb M5" in [f"{a} {b}" for a, b in zip(pd["k"]["element_labels"], pd["k"]["edge_labels"])]
+    lo, hi = pd["fluorescence"]["xlim"]
+    in_view = {(el, ln) for el, ln, x in zip(pd["fluorescence"]["element"],
+                                             pd["fluorescence"]["line"],
+                                             pd["fluorescence"]["x"]) if lo <= x <= hi}
+    assert ("Pb", "Ma") in in_view and ("S", "Ka1") in in_view
