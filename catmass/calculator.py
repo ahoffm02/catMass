@@ -26,6 +26,11 @@ PELLET_DIAMETERS_MM = ['5', '7', '10', '13']
 CAPILLARY_IDS_MM = ['1', '2', '3']
 UNITS = ['in', 'mils', 'cm', 'mm', 'μm']  # order = v3 unit-combo index used by physics.unitconvert
 IC_LENGTHS_CM = ['10', '15', '30', '45', '60', 'Other']
+# Diluent dropdown: formula -> label (researcher 2026-11-14). Any other formula can be typed.
+# Cellulose is (C6H10O5)n; entering it as C underestimates the diluent's absorption, since O
+# absorbs more per gram than C (Fe2O3 10:90 at Fe K: 29.60 mg as C vs 26.49 mg as C6H10O5).
+DILUENTS = {'': 'None (no dilution)', 'C6H10O5': 'Cellulose (C6H10O5)',
+            'BN': 'Boron nitride (BN)', 'SiO2': 'Silica (SiO2)'}
 
 DEFAULT_AL = '2.6'
 DEFAULT_PELLET_MM = '7'
@@ -172,7 +177,7 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
     used.append(Used('Sample formula', formula, 'entered'))
     if diluent:
         ratios = (s.sample_ratio.strip(), s.diluent_ratio.strip())
-        used.append(Used('Diluent', diluent, 'entered'))
+        used.append(Used('Diluent', DILUENTS.get(diluent, diluent), 'entered'))
         used.append(Used('Sample : diluent (mass)', f"{ratios[0]} : {ratios[1]}", 'entered'))
     else:
         ratios = ('', '')  # blank diluent = no dilution; any typed ratios are ignored

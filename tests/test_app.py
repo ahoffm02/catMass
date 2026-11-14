@@ -65,11 +65,27 @@ def choose(user, marker, option):
     widget.click()
 
 
+def choose_diluent(user, formula):
+    """Pick a listed diluent from the dropdown, or enter a new formula. For a typed formula the
+    select adds it as a new option and selects it (new-value-mode 'add-unique'); the simulated
+    user does the same, since typing into a select's input box is a browser-side action."""
+    if formula in calc.DILUENTS:
+        choose(user, "diluent", calc.DILUENTS[formula])
+        return
+    (select,) = user.find(marker="diluent").elements
+    with user.client:
+        select.options[formula] = formula
+        select.update()
+        select.value = formula
+
+
 async def enter(user, inp: calc.CalculatorInputs):
     """Type the inputs into the Calculator tab like a user."""
     s, sc, h = inp.sample, inp.scan, inp.holder
-    for marker, value in (("formula", s.formula), ("diluent", s.diluent),
-                          ("sample_ratio", s.sample_ratio), ("diluent_ratio", s.diluent_ratio)):
+    await fill(user, "formula", s.formula)
+    if s.diluent:
+        choose_diluent(user, s.diluent)
+    for marker, value in (("sample_ratio", s.sample_ratio), ("diluent_ratio", s.diluent_ratio)):
         await fill(user, marker, value)
     if sc.edge != "K":
         choose(user, "edge", sc.edge)
@@ -80,7 +96,7 @@ async def enter(user, inp: calc.CalculatorInputs):
     for marker, value in (("pellet_mm", h.pellet_mm), ("capillary_mm", h.capillary_mm),
                           ("bed_mm", h.bed_mm)):
         await fill(user, marker, value)
-    if h.holder == "other":  # the UI pre-fills the area from the previous holder
+    if h.holder == "other":  # blank means the 1 cm2 default; type the case's area
         user.find(marker="other_area").clear().type(h.other_area_cm2)
     if h.angle_on:
         user.find(marker="angle_on").click()
@@ -207,6 +223,49 @@ async def test_plot_range_set_on_plots_tab():
                      if p.figure["layout"]["title"]["text"] == "Sample absorption"]
         E0 = calc.run_calculation(inputs_from_golden(golden("A-Pt-foil-L3"))).E0_eV
         assert energy.figure["layout"]["xaxis"]["range"][1] == E0 + 2500
+
+
+async def test_diluent_dropdown_cellulose_and_typed_formula():
+    """Cellulose from the list is C6H10O5 (researcher 2026-11-14); any formula can be typed."""
+    for formula in ("C6H10O5", "C"):
+        inp = inputs_from_golden(golden("F-Fe2O3-C-10to90"))
+        inp.sample.diluent = formula
+        async with user_simulation(catmass_app.root) as user:
+            await user.open("/")
+            await enter(user, inp)
+            user.find(marker="calculate").click()
+            await user.should_see("Values used in this calculation")
+            expected = calc.run_calculation(inp)
+            assert_screen_matches(user, expected)
+            (table,) = user.find(marker="values_used").elements
+            label = "Cellulose (C6H10O5)" if formula == "C6H10O5" else "C"
+            assert {"quantity": "Diluent", "value": label, "source": "entered"} in table.rows
+
+
+async def test_quit_button_stops_the_app(monkeypatch):
+    calls = []
+    monkeypatch.setattr(catmass_app.app, "shutdown", lambda: calls.append("shutdown"))
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        user.find(marker="quit").click()
+        await asyncio.sleep(0.8)  # the app stops 0.5 s after replacing the page with a note
+    assert calls == ["shutdown"]
+
+
+async def test_auto_stop_waits_for_reconnect():
+    """Stops only when no tab is connected after the grace period (page reloads survive)."""
+    class Client:
+        def __init__(self, id):
+            self.id = id
+    calls = []
+    stop = catmass_app.AutoStop(lambda: calls.append("shutdown"), grace=0.05)
+    stop.connected(Client("a"))
+    reload = asyncio.ensure_future(stop.disconnected(Client("a")))
+    stop.connected(Client("b"))  # the reloaded page reconnects within the grace period
+    await reload
+    assert calls == []
+    await stop.disconnected(Client("b"))  # last tab closed
+    assert calls == ["shutdown"]
 
 
 def contrast(a, b):

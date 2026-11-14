@@ -6,6 +6,7 @@ About. Runs locally; the only network call is the optional "Check for updates" b
 """
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import socket
@@ -14,7 +15,7 @@ import urllib.request
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 
-from nicegui import run, ui
+from nicegui import app, run, ui
 
 from catmass import __version__
 from catmass import calculator as calc
@@ -28,7 +29,12 @@ PAPER = ('J. E. Perez-Aguilar, A. Caine, S. R. Bare, A. S. Hoffman, "CatMass: so
          'calculating optimal sample masses for X-ray absorption spectroscopy experiments '
          'involving complex sample compositions", J. Synchrotron Rad. 30(5), 1023-1029 (2023).')
 PAPER_DOI = 'https://doi.org/10.1107/S160057752300615X'
-WIDE = 'w-full max-w-4xl'
+WIDE = 'w-full'
+# Side by side on wide screens or zoomed out, stacked when narrow or zoomed in (researcher
+# 2026-11-14, option a: inputs left, results right). lg = 1024 CSS px; at 200% browser zoom a
+# 1920 px screen is 960 CSS px wide, so it stacks.
+BAND = 'grid grid-cols-1 lg:grid-cols-2 gap-4 w-full max-w-screen-2xl mx-auto items-start'
+SINGLE = 'w-full max-w-5xl mx-auto'
 
 # Colours (researcher 2026-11-14: SLAC red). Stanford Cardinal Red, CMYK 0-100-65-34, is
 # #8C1515 on screen (identity.stanford.edu, primary colours); its "light" variant #B83A4B is
@@ -113,6 +119,8 @@ class CatMassPage:
                     ui.button('Open', icon='folder_open', on_click=self.open_dialog).props(
                         'flat color=white')
                     ui.button('Save', icon='save', on_click=self.save).props('flat color=white')
+                    ui.button('Quit', icon='power_settings_new', on_click=self.quit).props(
+                        'flat color=white').mark('quit')
                     ui.switch('Dark', on_change=self.set_dark).props(
                         'color=white keep-color').mark('dark')
             with ui.tabs().classes('w-full').props(
@@ -123,16 +131,21 @@ class CatMassPage:
                 self.t_beam = ui.tab('Beam path & ion chambers', icon='straighten')
                 self.t_about = ui.tab('About', icon='info')
         with ui.tab_panels(self.tabs, value=self.t_calc).classes('w-full'):
-            with ui.tab_panel(self.t_calc).classes('items-center'):
-                self.build_calculator()
-            with ui.tab_panel(self.t_builder).classes('items-center'):
-                self.build_builder()
-            with ui.tab_panel(self.t_plots).classes('items-center'):
-                self.build_plots()
-            with ui.tab_panel(self.t_beam).classes('items-center'):
-                self.build_beam_path()
-            with ui.tab_panel(self.t_about).classes('items-center'):
-                self.build_about()
+            with ui.tab_panel(self.t_calc):
+                with ui.element('div').classes(BAND):
+                    self.build_calculator()
+            with ui.tab_panel(self.t_builder):
+                with ui.element('div').classes(BAND):
+                    self.build_builder()
+            with ui.tab_panel(self.t_plots):
+                with ui.column().classes(SINGLE):
+                    self.build_plots()
+            with ui.tab_panel(self.t_beam):
+                with ui.element('div').classes(BAND):
+                    self.build_beam_path()
+            with ui.tab_panel(self.t_about):
+                with ui.column().classes(SINGLE):
+                    self.build_about()
 
     def text_input(self, obj, attr, label, placeholder='', marker=None, track=True, **kwargs):
         """Text field bound to a dataclass attribute; `track` marks results out of date."""
@@ -145,6 +158,15 @@ class CatMassPage:
 
     def build_calculator(self):
         c = self.s.calculator
+        inputs = ui.column().classes('w-full gap-4')
+        outputs = ui.column().classes('w-full gap-4')
+        with inputs:
+            self.build_calculator_inputs(c)
+        with outputs:
+            self.results = ui.card().classes(WIDE).props('role=status aria-live=polite')
+            self.render_results()
+
+    def build_calculator_inputs(self, c):
         with ui.card().classes(WIDE):
             ui.label('Sample and dilution').classes('text-h6')
             with ui.row().classes('w-full items-center'):
@@ -153,8 +175,12 @@ class CatMassPage:
                 ui.button('Sample Builder', icon='science',
                           on_click=lambda: self.tabs.set_value(self.t_builder)).props('outline')
             with ui.row().classes('w-full'):
-                self.text_input(c.sample, 'diluent', 'Diluent formula', 'blank = no dilution',
-                                'diluent')
+                # Common diluents, or type any formula (researcher 2026-11-14). Cellulose is
+                # (C6H10O5)n, not C: O absorbs more per gram than C.
+                ui.select(calc.DILUENTS, label='Diluent', with_input=True,
+                          new_value_mode='add-unique', on_change=self.inputs_changed).bind_value(
+                    c.sample, 'diluent', forward=lambda v: v or '',
+                    backward=lambda v: v).classes('min-w-[12rem] grow').mark('diluent')
                 self.text_input(c.sample, 'sample_ratio', 'Sample mass ratio', 'e.g. 1',
                                 'sample_ratio')
                 self.text_input(c.sample, 'diluent_ratio', 'Diluent mass ratio', 'e.g. 9',
@@ -198,9 +224,7 @@ class CatMassPage:
                 self.text_input(c, 'absorption_length', 'Total absorption μx at E0 + 50 eV',
                                 f'{calc.DEFAULT_AL} (default)', 'absorption_length')
         ui.button('Calculate sample mass', icon='play_arrow', on_click=self.calculate).props(
-            'size=lg').mark('calculate')
-        self.results = ui.card().classes(WIDE).props('role=status aria-live=polite')
-        self.render_results()
+            'size=lg').classes('self-center').mark('calculate')
 
     def build_builder(self):
         b = self.s.sample_builder
@@ -469,6 +493,14 @@ class CatMassPage:
             f'{self.ic_result} % beam absorbed'
         self.ic_label.set_text(text)
 
+    def quit(self):
+        """Stop catMass. The tab is replaced by a note first, since the page cannot update
+        once the server has stopped."""
+        ui.run_javascript(
+            "document.body.innerHTML = '<div style=\"font-family:sans-serif;margin:4rem\">"
+            "<h2>catMass has stopped.</h2><p>You can close this browser tab.</p></div>'")
+        ui.timer(0.5, app.shutdown, once=True)
+
     def save(self):
         text = savefile.dumps(self.s, self.result, self.beam_result, self.ic_result)
         ui.download.content(text.encode('utf-8'), 'catmass_calculation.json', 'application/json')
@@ -626,6 +658,23 @@ def plot_figures(pd, glitch_shown, dark=False):
     return [energy, kspace, fluorescence]
 
 
+class AutoStop:
+    """Stop catMass when no browser tab has been connected for `grace` seconds (researcher
+    2026-11-14). The delay lets a page reload or a brief network drop reconnect first."""
+
+    def __init__(self, shutdown, grace=15.0):
+        self.shutdown, self.grace, self.clients = shutdown, grace, set()
+
+    def connected(self, client):
+        self.clients.add(client.id)
+
+    async def disconnected(self, client):
+        self.clients.discard(client.id)
+        await asyncio.sleep(self.grace)
+        if not self.clients:
+            self.shutdown()
+
+
 def root():
     # Keep labels above the fields so the grey "(default)" placeholders are always visible;
     # Quasar otherwise shows a placeholder only while the field has focus.
@@ -635,5 +684,8 @@ def root():
 
 def main():
     """Entry point of the `catmass` command: serve locally and open the browser."""
+    auto_stop = AutoStop(app.shutdown)
+    app.on_connect(auto_stop.connected)
+    app.on_disconnect(auto_stop.disconnected)
     ui.run(root, title='catMass', favicon=ASSETS / 'CoACCESSScale_v6.ico', host='127.0.0.1',
            port=free_port(), reload=False, show=True, show_welcome_message=False)
