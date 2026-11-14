@@ -81,6 +81,32 @@ CHANGES = {
             {'case': 'H-other-decimal-plot', 'snapshot': 'final', 'field': 'plot', 'v3': "ValueError: invalid literal for int() with base 10: '11564.5'", 'new': {'fluorescence_xlim': [10764.5, 12364.5]}},
         ],
     },
+    "F3a": {
+        "finding": 3,
+        "approved": "researcher, 2026-11-14 (fix the note text in Release 1; the retry algorithm "
+                    "stays for Release 2, Upgrade 3)",
+        "title": "Retry-loop note states the edge-step window actually used",
+        "why": "v3's note printed its loop counter (50 - whilecount, e.g. '± 43') instead of the "
+               "window used (-10 eV in that case), contradicting the 'values used' list.",
+        "numbers_changed": False,  # displayed note text only; no calculated value changes
+        "values": [
+            {'case': 'H-FeCeO2-retry-angle', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable)'},
+            {'case': 'H-FeCeO2-retry-noplot', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'H-element-not-in-sample', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'H-off-edge', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-FeK-Al2O3-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-FeK-CeO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-FeK-CeO2-1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 45 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 10 eV, consider fluorescence'},
+            {'case': 'core-FeK-CeO2-3wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 47 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 30 eV, consider fluorescence'},
+            {'case': 'core-FeK-SiO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-MoK-CeO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-PtL3-Al2O3-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 46 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 20 eV, consider fluorescence'},
+            {'case': 'core-PtL3-CeO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 43 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± -10 eV (below/above swapped; step not reliable), consider fluorescence'},
+            {'case': 'core-PtL3-CeO2-1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 46 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 20 eV, consider fluorescence'},
+            {'case': 'core-PtL3-SiO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 45 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 10 eV, consider fluorescence'},
+            {'case': 'core-RhK-CeO2-0.1wt', 'snapshot': 'final', 'field': 'textbox_Xray_05', 'v3': 'Note: Edge step at: E0 ± 45 eV, consider fluorescence', 'new': 'Note: Edge step at: E0 ± 10 eV, consider fluorescence'},
+        ],
+    },
 }
 
 

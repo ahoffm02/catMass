@@ -244,16 +244,10 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
         return _fail(r['Result'], used)
     used.append(Used('Edge energy E0', f"{r['Enot']:.1f} eV", 'calculated'))
     if r['whilecount'] != 1:
-        # Finding 3 (Release 2): v3's retry loop shrinks the window, then goes negative. State
-        # the window actually used; v3's note text (diagnostic) misreports it.
-        window = 50 - 10*(r['whilecount'] - 1)
-        if window > 0:
-            text = f"E0 ± {window} eV"
-        elif window == 0:
-            text = "E0 ± 0 eV (no window; step not reliable)"
-        else:
-            text = f"E0 ± {window} eV (below/above swapped; step not reliable)"
-        used.append(Used('Edge-step window (v3 retry loop)', text, 'calculated'))
+        # Finding 3 (algorithm: Release 2): v3's retry loop shrinks the window, then goes
+        # negative. Same text as the diagnostic note (change F3a).
+        used.append(Used('Edge-step window (v3 retry loop)',
+                         physics.retry_window_text(r['whilecount']), 'calculated'))
 
     calc = Calculation(ok=True, shown=physics.result_display(r, h.angle_on),
                        diagnostic=physics.diagnostic_text(r, plot=True, angle_mode=h.angle_on),

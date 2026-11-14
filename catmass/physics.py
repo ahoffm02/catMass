@@ -888,25 +888,48 @@ def result_display(r, angle_mode=False):
     return shown
 
 
+def retry_window(whilecount):
+    """Edge-step window [eV] actually used: retry k (k = whilecount - 1) uses 50 - 10k eV."""
+    return 50 - 10*(whilecount - 1)
+
+
+def retry_window_text(whilecount):
+    """'E0 ± <window> eV', flagged when the window is zero or reversed (finding 3)."""
+    window = retry_window(whilecount)
+    text = f'E0 ± {window} eV'
+    if window == 0:
+        text += ' (no window; step not reliable)'
+    elif window < 0:
+        text += ' (below/above swapped; step not reliable)'
+    return text
+
+
 def diagnostic_text(r, plot=False, angle_mode=False):
-    """The results-panel diagnostic line, in v3's order of overwrites (lines 2256-2333)."""
-    Result, whilecount, newsetp = r['Result'], r['whilecount'], r['newsetp']
+    """The results-panel diagnostic line, in v3's order of overwrites (lines 2256-2333).
+
+    Change F3a (finding 3, note text only; approved 2026-11-08): v3's note gave its loop counter
+    (newsetp = 50 - whilecount, e.g. "± 43") instead of the window used (-10 eV in that case).
+    The note now states the window used, as the "values used" list does. The retry loop itself
+    is unchanged until Release 2 (Upgrade 3).
+    """
+    Result, whilecount = r['Result'], r['whilecount']
+    note = 'Note: Edge step at: ' + retry_window_text(whilecount)
     text = Result if 'ERROR' in Result else ''
     if not plot:
         text = Result
         if whilecount !=1 and not angle_mode:
-            text = 'Note: Edge step at: E0 ± ' + str(newsetp) +' eV, consider fluorescence'
+            text = note + ', consider fluorescence'
         if whilecount !=1 and angle_mode:
-            text = 'Note: Edge step at: E0 ± ' + str(newsetp) +' eV'
+            text = note
         if whilecount >=48:
             text = 'Background Level Edge Step'
     if 'ERROR' in Result:
         text = Result
     if plot:
         if whilecount !=1 and not angle_mode:
-            text = 'Note: Edge step at: E0 ± ' + str(newsetp) +' eV, consider fluorescence'
+            text = note + ', consider fluorescence'
         if whilecount !=1 and angle_mode:
-            text = 'Note: Edge step at: E0 ± ' + str(newsetp) +' eV'
+            text = note
         if whilecount >=48:
             text = 'Background Level Edge Step'
     return text

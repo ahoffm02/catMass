@@ -205,3 +205,16 @@ def test_F7_plot_for_L1_L2_and_absent_element():
     pd = physics.plot_data("Al2O3", "Fe", "K", "0.38", "2.6", r["ms"], r["Enot"], "-200", "1000")
     assert pd["fluorescence"]["xlim"] == [r["Enot"] - 800, r["Enot"] + 800]
     assert pd["fluorescence"]["band"] is None
+
+
+def test_F3a_note_states_the_window_v3_actually_used():
+    """The number in each corrected note equals the window of v3's own last retry call, as
+    recorded in the golden file (independent of catmass.physics); v3's number was 49 - retries."""
+    import re
+    from tests.test_parity_v3 import calc_groups
+    for v in CHANGES["F3a"]["values"]:
+        grp = calc_groups(golden(v["case"]))[-1]
+        last_window = grp["retries"][-1]["args"][5]  # gamma = delta of the last retry [eV]
+        assert re.search(r"± (-?\d+) eV", v["new"]).group(1) == str(last_window), v
+        assert re.search(r"± (-?\d+) eV", v["v3"]).group(1) == str(49 - len(grp["retries"])), v
+        assert ("step not reliable" in v["new"]) == (last_window <= 0), v
