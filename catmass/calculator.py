@@ -149,8 +149,8 @@ class Calculation:
     values_used: list = field(default_factory=list)
     E0_eV: Optional[float] = None
     area_used_cm2: Optional[float] = None   # projected in angle mode; full precision
-    al_used: Optional[float] = None         # along the tilted path in angle mode
-    tilt_deg: Optional[float] = None        # angle used (whole degrees, as v3), None if not tilted
+    al_used: Optional[float] = None         # projected (rotated sample) in angle mode
+    tilt_deg: Optional[float] = None        # angle used (whole degrees, as v3), None if not rotated
     plot: Optional[dict] = None        # physics.plot_data, or None
     plot_error: str = ''
     plot_args: Optional[tuple] = None  # physics.plot_data inputs except the limits (replot)
@@ -243,7 +243,7 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
                          f"{round(float(ang)):.0f}°", 'calculated'))
         used.append(Used('Projected area seen by the beam', f"{float(area_used):.5g} cm²",
                          'calculated'))
-        used.append(Used('Absorption length along the tilted path', f"{float(al_used):.4g}",
+        used.append(Used('Projected absorption length (sample rotated)', f"{float(al_used):.4g}",
                          'calculated'))
 
     r = physics.calculate_result(diluted, element, edge, area_used, al_used, *ratios)

@@ -15,7 +15,8 @@ Needs Python 3.9, 3.10, 3.11 or 3.12.
     catmass
 
 `catmass` (or `python -m catmass`) starts catMass on this computer and opens it in your web
-browser. Nothing is sent over the network; the only connection catMass can make is the optional
+browser. It keeps running when you close the browser tab (the terminal shows the address to
+reopen it); press Ctrl+C in the terminal to stop it. Nothing is sent over the network; the only connection catMass can make is the optional
 "Check for updates" button on the About tab.
 
 ## Using catMass

@@ -14,7 +14,7 @@ from nicegui.testing.user_simulation import user_simulation
 
 from catmass import app as catmass_app
 from catmass import calculator as calc
-from catmass import savefile
+from catmass import physics, savefile
 from tests.parity import golden
 from tests.test_calculator import inputs_from_golden
 
@@ -242,30 +242,36 @@ async def test_diluent_dropdown_cellulose_and_typed_formula():
             assert {"quantity": "Diluent", "value": label, "source": "entered"} in table.rows
 
 
-async def test_quit_button_stops_the_app(monkeypatch):
-    calls = []
-    monkeypatch.setattr(catmass_app.app, "shutdown", lambda: calls.append("shutdown"))
+async def test_no_quit_button():
+    """Stopped with Ctrl+C in the terminal only (researcher 2026-11-17, tester feedback)."""
     async with user_simulation(catmass_app.root) as user:
         await user.open("/")
-        user.find(marker="quit").click()
-        await asyncio.sleep(0.8)  # the app stops 0.5 s after replacing the page with a note
-    assert calls == ["shutdown"]
+        await user.should_see("Open")
+        await user.should_not_see("Quit")
+    assert not hasattr(catmass_app, "AutoStop")
 
 
-async def test_auto_stop_waits_for_reconnect():
-    """Stops only when no tab is connected after the grace period (page reloads survive)."""
-    class Client:
-        def __init__(self, id):
-            self.id = id
-    calls = []
-    stop = catmass_app.AutoStop(lambda: calls.append("shutdown"), grace=0.05)
-    stop.connected(Client("a"))
-    reload = asyncio.ensure_future(stop.disconnected(Client("a")))
-    stop.connected(Client("b"))  # the reloaded page reconnects within the grace period
-    await reload
-    assert calls == []
-    await stop.disconnected(Client("b"))  # last tab closed
-    assert calls == ["shutdown"]
+def test_glitch_axes_on_the_right_centred_and_scaled():
+    """Glitches on a right-hand axis, centred on zero, scaled to the largest deviation shown,
+    ticks only at +/- that value; the k plot has no left axis (researcher 2026-11-17)."""
+    r = calc.run_calculation(inputs_from_golden(golden("A-Pt-foil-L3")))
+    every = {f: True for f, _, _ in physics.GLITCH_LIBRARY}
+    for shown in (every, {f: False for f in every}, {next(iter(every)): True}):
+        energy, kspace, _ = catmass_app.plot_figures(r.plot, shown)
+        visible = [g for g in r.plot["glitches"] if shown.get(g["file"])]
+        for layout, key, series in ((energy["layout"], "yaxis2", "E_y"),
+                                    (kspace["layout"], "yaxis", "k_y")):
+            axis = layout[key]
+            assert axis["side"] == "right"
+            lo, hi = axis["range"]
+            assert lo == -hi
+            peak = max((abs(v) for g in visible for v in g[series]), default=0.0)
+            assert axis["tickvals"] == ([-peak, peak] if peak else [])
+            if peak:
+                assert hi > peak and axis["ticktext"][1] == f"+{peak:.3g}%"
+        assert "yaxis2" not in kspace["layout"]
+        assert energy["layout"]["yaxis"].get("side", "left") == "left"
+    assert any(g["E_y"] for g in r.plot["glitches"])  # the case does have glitches in range
 
 
 def contrast(a, b):
@@ -316,9 +322,9 @@ async def test_edge_table_and_window_warning_on_screen():
         assert text(user, "window_warning") == expected.warnings[0]
 
 
-async def test_tilt_shows_apparent_absorption_and_path_label():
-    """mu-x is defined for the sample perpendicular to the beam; tilted, catMass reports the
-    apparent absorption mu-x / sin(theta) and the step along that path (researcher 2026-11-14)."""
+async def test_rotation_shows_projected_absorption_and_step():
+    """Mass is for the geometry and absorption as entered; rotated, catMass reports the
+    projected absorption mu-x / sin(theta) and edge step (researcher 2026-11-14, 2026-11-17)."""
     inp = inputs_from_golden(golden("E-angle30"))  # 7 mm pellet, AL 2.6 default, 30 deg
     expected = calc.run_calculation(inp)
     assert expected.tilt_deg == 30.0 and abs(expected.al_used - 2.6 / 0.5) < 1e-12
@@ -326,9 +332,10 @@ async def test_tilt_shows_apparent_absorption_and_path_label():
         await user.open("/")
         await enter(user, inp)
         user.find(marker="calculate").click()
-        await user.should_see("Apparent absorption μx at E0 + 50 eV (along the path tilted 30°)")
+        await user.should_see("Projected absorption μx at E0 + 50 eV (sample rotated 30°)")
         assert text(user, "apparent_absorption") == "5.20"
-        await user.should_see("Estimated edge step (along the path tilted 30°)")
+        await user.should_see("Projected edge step (sample rotated 30°)")
+        await user.should_see("Sample rotated to the beam")
     inp.holder.angle_on = False
     async with user_simulation(catmass_app.root) as user:
         await user.open("/")

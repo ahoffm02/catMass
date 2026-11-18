@@ -6,7 +6,6 @@ About. Runs locally; the only network call is the optional "Check for updates" b
 """
 from __future__ import annotations
 
-import asyncio
 import inspect
 import json
 import socket
@@ -15,7 +14,7 @@ import urllib.request
 from dataclasses import fields, is_dataclass
 from pathlib import Path
 
-from nicegui import app, run, ui
+from nicegui import run, ui
 
 from catmass import __version__
 from catmass import calculator as calc
@@ -119,8 +118,6 @@ class CatMassPage:
                     ui.button('Open', icon='folder_open', on_click=self.open_dialog).props(
                         'flat color=white')
                     ui.button('Save', icon='save', on_click=self.save).props('flat color=white')
-                    ui.button('Quit', icon='power_settings_new', on_click=self.quit).props(
-                        'flat color=white').mark('quit')
                     ui.switch('Dark', on_change=self.set_dark).props(
                         'color=white keep-color').mark('dark')
             with ui.tabs().classes('w-full').props(
@@ -219,12 +216,12 @@ class CatMassPage:
                 self.text_input(c, 'absorption_length',
                                 'Total absorption μx at E0 + 50 eV, sample ⊥ beam',
                                 f'{calc.DEFAULT_AL} (default)', 'absorption_length')
-            ui.label('Defined for the beam perpendicular to the sample. When the sample is tilted, '
-                     'catMass keeps the same sample mass; the beam then crosses a longer path, so '
-                     'the apparent absorption is μx / sin θ and the edge step is reported along '
-                     'that path.').classes('text-caption').mark('al_help')
+            ui.label('Sample mass is calculated assuming the sample geometry and target '
+                     'absorption length as defined above. Rotating the sample calculates a '
+                     'projected absorption length and edge step based on the rotation to the '
+                     'beam, via μx / sin θ.').classes('text-caption').mark('al_help')
             with ui.row().classes('w-full items-center'):
-                ui.switch('Sample tilted to the beam', on_change=self.inputs_changed).bind_value(
+                ui.switch('Sample rotated to the beam', on_change=self.inputs_changed).bind_value(
                     c.holder, 'angle_on').mark('angle_on')
                 self.text_input(c.holder, 'angle_deg', 'Angle between beam and sample [°]',
                                 f'{calc.DEFAULT_ANGLE_DEG} (default; 90 = ⊥)', 'angle_deg'
@@ -361,16 +358,17 @@ class CatMassPage:
                     ui.label(r.error).classes('text-negative').mark('error')
             else:
                 shown = r.shown
-                tilted = r.tilt_deg is not None
-                path = f' (along the path tilted {r.tilt_deg:.0f}°)' if tilted else ''
+                rotated = r.tilt_deg is not None
+                path = f' (sample rotated {r.tilt_deg:.0f}°)' if rotated else ''
                 rows = [('Diluted sample mass', f"{shown['mass']} mg", 'mass'),
-                        ('Estimated edge step' + path, shown['step'] + (
+                        (('Projected edge step' if rotated else 'Estimated edge step') + path,
+                         shown['step'] + (
                             '  (above 1: consider diluting)' if shown['step_red'] else ''), 'step'),
                         ('Sample mass', f"{shown['sample_mass']} mg", 'sample_mass'),
                         ('Diluent mass', f"{shown['diluent_mass']} mg", 'diluent_mass'),
                         ('Edge energy E0', f"{shown['E0']} eV", 'E0')]
-                if tilted:  # v3 relabelled these 'Projected ...' in angle mode
-                    rows.insert(2, ('Apparent absorption μx at E0 + 50 eV' + path,
+                if rotated:  # v3 also labelled these 'Projected ...' in angle mode
+                    rows.insert(2, ('Projected absorption μx at E0 + 50 eV' + path,
                                     f'{r.al_used:.2f}', 'apparent_absorption'))
                 with ui.grid(columns=2).classes('gap-x-6'):
                     for name, value, marker in rows:
@@ -521,14 +519,6 @@ class CatMassPage:
             f'{self.ic_result} % beam absorbed'
         self.ic_label.set_text(text)
 
-    def quit(self):
-        """Stop catMass. The tab is replaced by a note first, since the page cannot update
-        once the server has stopped."""
-        ui.run_javascript(
-            "document.body.innerHTML = '<div style=\"font-family:sans-serif;margin:4rem\">"
-            "<h2>catMass has stopped.</h2><p>You can close this browser tab.</p></div>'")
-        ui.timer(0.5, app.shutdown, once=True)
-
     def save(self):
         text = savefile.dumps(self.s, self.result, self.beam_result, self.ic_result)
         ui.download.content(text.encode('utf-8'), 'catmass_calculation.json', 'application/json')
@@ -592,6 +582,22 @@ def line_label(name):
     return name
 
 
+def glitch_axis(series):
+    """Right-hand y axis for glitch traces (researcher 2026-11-17): centred on zero, scaled to the
+    largest deviation shown, tick labels only at +/- that value. Glitch values are % deviation
+    from ideal (SSRL library; scoping note 2026-11-07)."""
+    peak = max((abs(v) for ys in series for v in ys), default=0.0)
+    axis = {'side': 'right', 'zeroline': True, 'showgrid': False,
+            'title': {'text': 'Glitch (% deviation)'}}
+    if peak == 0:  # no glitch shown in this range
+        axis.update(range=[-1, 1], tickvals=[], showticklabels=False)
+    else:
+        label = f'{peak:.3g}'
+        axis.update(range=[-1.08 * peak, 1.08 * peak], tickvals=[-peak, peak],
+                    ticktext=[f'−{label}%', f'+{label}%'])
+    return axis
+
+
 def plot_figures(pd, glitch_shown, dark=False):
     """Three Plotly figures (energy, k, fluorescence) from physics.plot_data output."""
     template = 'plotly_dark' if dark else 'plotly_white'
@@ -620,8 +626,7 @@ def plot_figures(pd, glitch_shown, dark=False):
         'xaxis': {'title': {'text': 'Photon energy (eV)'}, 'tickformat': '.0f', 'range': e['xlim']},
         'yaxis': {'title': {'text': 'Sample absorption (μ<sub>average</sub> · mass/area)'},
                   'range': e['ylim']},
-        'yaxis2': {'overlaying': 'y', 'side': 'right', 'range': [-7, 7], 'showticklabels': False,
-                   'showgrid': False},
+        'yaxis2': {**glitch_axis([g['E_y'] for g in shown]), 'overlaying': 'y'},
         'legend': {'orientation': 'h', 'y': -0.25}, 'margin': {'t': 40}}}
 
     labels = [f'{el} {ed}' for el, ed in zip(k['element_labels'], k['edge_labels'])]
@@ -635,7 +640,8 @@ def plot_figures(pd, glitch_shown, dark=False):
     kspace = {'data': data, 'config': config, 'layout': {
         'template': template, 'title': {'text': 'Edges and glitches in k'},
         'xaxis': {'title': {'text': 'k (Å<sup>-1</sup>)'}, 'range': k['xlim']},
-        'yaxis': {'title': {'text': 'Glitch amplitude (%)'}, 'range': [-7, 7]},
+        # one axis, on the right: glitches; the edge markers sit on its zero line
+        'yaxis': glitch_axis([g['k_y'] for g in shown]),
         'legend': {'orientation': 'h', 'y': -0.25}, 'margin': {'t': 40}}}
 
     # Fluorescence lines: one series per element (researcher 2026-11-14). Intensities are only
@@ -689,23 +695,6 @@ def plot_figures(pd, glitch_shown, dark=False):
     return [energy, kspace, fluorescence]
 
 
-class AutoStop:
-    """Stop catMass when no browser tab has been connected for `grace` seconds (researcher
-    2026-11-14). The delay lets a page reload or a brief network drop reconnect first."""
-
-    def __init__(self, shutdown, grace=15.0):
-        self.shutdown, self.grace, self.clients = shutdown, grace, set()
-
-    def connected(self, client):
-        self.clients.add(client.id)
-
-    async def disconnected(self, client):
-        self.clients.discard(client.id)
-        await asyncio.sleep(self.grace)
-        if not self.clients:
-            self.shutdown()
-
-
 def root():
     # Keep labels above the fields so the grey "(default)" placeholders are always visible;
     # Quasar otherwise shows a placeholder only while the field has focus.
@@ -714,9 +703,10 @@ def root():
 
 
 def main():
-    """Entry point of the `catmass` command: serve locally and open the browser."""
-    auto_stop = AutoStop(app.shutdown)
-    app.on_connect(auto_stop.connected)
-    app.on_disconnect(auto_stop.disconnected)
+    """Entry point of the `catmass` command: serve locally and open the browser. It runs until
+    Ctrl+C in the terminal (researcher 2026-11-17: no Quit button, no stop on closing the tab)."""
+    port = free_port()
+    print(f'catMass {__version__} is running at http://127.0.0.1:{port}\n'
+          'Closing the browser tab leaves it running; press Ctrl+C here to stop it.', flush=True)
     ui.run(root, title='catMass', favicon=ASSETS / 'CoACCESSScale_v6.ico', host='127.0.0.1',
-           port=free_port(), reload=False, show=True, show_welcome_message=False)
+           port=port, reload=False, show=True, show_welcome_message=False)
