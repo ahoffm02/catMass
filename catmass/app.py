@@ -9,7 +9,6 @@ from __future__ import annotations
 import inspect
 import json
 import socket
-import urllib.error
 import urllib.request
 from dataclasses import fields, is_dataclass
 from pathlib import Path
@@ -22,7 +21,8 @@ from catmass import physics, savefile
 
 ASSETS = Path(__file__).parent / 'assets'
 REPO_URL = 'https://github.com/ahoffm02/catMass'
-RELEASES_API = 'https://api.github.com/repos/ahoffm02/catMass/releases/latest'
+# Releases are published on PyPI (researcher 2026-11-18); the update check reads the newest version
+PYPI_JSON = 'https://pypi.org/pypi/catmass/json'
 # Verified via Crossref, 2026-11-08 (Hard Constraint 6)
 PAPER = ('J. E. Perez-Aguilar, A. Caine, S. R. Bare, A. S. Hoffman, "CatMass: software for '
          'calculating optimal sample masses for X-ray absorption spectroscopy experiments '
@@ -71,16 +71,19 @@ def free_port(preferred=8080):
     raise RuntimeError('no free port')
 
 
-def latest_release():
-    """Tag of the newest GitHub release, or None if there is none. Raises when offline."""
-    request = urllib.request.Request(RELEASES_API, headers={'Accept': 'application/vnd.github+json'})
+def latest_version():
+    """Newest catmass version on PyPI. Raises when offline."""
+    with urllib.request.urlopen(PYPI_JSON, timeout=3) as response:
+        return json.load(response)['info']['version']
+
+
+def is_newer(latest, current):
+    """True if version `latest` is newer than `current` (year.month.release, compared as
+    numbers; the 2022 version 0.1.0 is older). Unparsable versions count as newer if different."""
     try:
-        with urllib.request.urlopen(request, timeout=3) as response:
-            return json.load(response).get('tag_name')
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            return None
-        raise
+        return tuple(int(x) for x in latest.split('.')) > tuple(int(x) for x in current.split('.'))
+    except ValueError:
+        return latest != current
 
 
 class Combo(ui.select):
@@ -378,7 +381,7 @@ class CatMassPage:
             with ui.row().classes('items-center'):
                 ui.button('Check for updates', icon='update', on_click=self.check_updates).mark(
                     'check_updates')
-                self.update_label = ui.label().classes('text-body2')
+                self.update_label = ui.label().classes('text-body2').mark('update_status')
             ui.label('Checking contacts GitHub once; catMass makes no other network '
                      'connections.').classes('text-caption')
 
@@ -603,16 +606,16 @@ class CatMassPage:
     async def check_updates(self):
         self.update_label.set_text('Checking...')
         try:
-            tag = await run.io_bound(latest_release)
+            latest = await run.io_bound(latest_version)
         except Exception:
             self.update_label.set_text('Could not check for updates (offline?).')
             return
-        if tag is None:
-            self.update_label.set_text('No releases published yet.')
-        elif tag.lstrip('v') == __version__:
-            self.update_label.set_text(f'catMass {__version__} is the latest version.')
+        if is_newer(latest, __version__):
+            self.update_label.set_text(
+                f'catMass {latest} is available. To update, run pip install --upgrade catmass '
+                'in the catMass environment (see Update in the README).')
         else:
-            self.update_label.set_text(f'catMass {tag} is available at {REPO_URL}/releases')
+            self.update_label.set_text(f'catMass {__version__} is the latest version.')
 
 
 # Categorical colours: the dataviz reference palette, unchanged (validated there, light and dark

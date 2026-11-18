@@ -62,7 +62,7 @@ second catMass at a different address.
 terminal.
 
 Nothing is sent over the network. The only connection catMass can make is the optional "Check
-for updates" button on the About tab.
+for updates" button on the About tab, which asks pypi.org for the newest version number.
 
 ## Update
 In a conda prompt:

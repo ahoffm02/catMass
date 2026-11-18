@@ -421,3 +421,32 @@ async def test_combo_shows_a_value_set_from_code():
                                                   if isinstance(combo.options, list)
                                                   else list(combo.options).index(value),
                                                   "label": value}
+
+
+@pytest.mark.parametrize("on_pypi, expected", [
+    ("2026.12.1", "catMass 2026.12.1 is available. To update, run pip install --upgrade catmass "
+                  "in the catMass environment (see Update in the README)."),
+    (catmass_app.__version__, f"catMass {catmass_app.__version__} is the latest version."),
+    ("0.1.0", f"catMass {catmass_app.__version__} is the latest version."),  # the 2022 version
+    (OSError("offline"), "Could not check for updates (offline?)."),
+])
+async def test_update_check_reads_pypi(monkeypatch, on_pypi, expected):
+    """Releases are published on PyPI (researcher 2026-11-18); no network in tests."""
+    def fake():
+        if isinstance(on_pypi, Exception):
+            raise on_pypi
+        return on_pypi
+    monkeypatch.setattr(catmass_app, "latest_version", fake)
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        user.find(marker="check_updates").click()
+        await settle()
+        assert text(user, "update_status") == expected
+
+
+def test_is_newer():
+    assert catmass_app.is_newer("2026.12.1", "2026.11.1")
+    assert catmass_app.is_newer("2027.1.1", "2026.11.1")     # numbers, not text: 1 < 11
+    assert not catmass_app.is_newer("2026.9.1", "2026.11.1")
+    assert not catmass_app.is_newer("0.1.0", "2026.11.1")
+    assert not catmass_app.is_newer("2026.11.1", "2026.11.1")
