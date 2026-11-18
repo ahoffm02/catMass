@@ -264,7 +264,8 @@ def run_calculation(inp: CalculatorInputs) -> Calculation:
                        if h.angle_on else None)
 
     calc.edge_table = edge_table(diluted, element, edge, area_used, al_used, r)
-    calc.warnings = window_warnings(diluted, element, edge, r)
+    calc.warnings = (absent_element_warnings(diluted, bool(diluent), element, edge, r)
+                     + window_warnings(diluted, element, edge, r))
 
     # Plot range: set on the Plots tab, not part of the mass calculation, so not listed in
     # "values used" (researcher 2026-11-14)
@@ -297,6 +298,17 @@ def edge_table(diluted, element, edge, area_used, al_used, r):
     for row in rows:
         del row['_E']
     return rows
+
+
+def absent_element_warnings(diluted, has_diluent, element, edge, r):
+    """The element to be scanned is not in the sample: calculated as in v3, with a warning
+    instead of a refusal (researcher 2026-11-18)."""
+    if element == 'N/A' or physics.contains_element(diluted, element):
+        return []
+    where = 'sample or diluent' if has_diluent else 'sample'
+    return [f"{element} is not in the {where}: the mass and edge step are calculated at the "
+            f"{element} {edge} edge energy ({r['Enot']:.0f} eV), where the sample has no "
+            f"{element} edge"]
 
 
 def window_warnings(diluted, element, edge, r):

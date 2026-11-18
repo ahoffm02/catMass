@@ -307,3 +307,24 @@ def test_scan_element_options():
     assert calc.scan_element_options("SiO2") == []               # Si K 1839 eV
     for formula in ("", "C6H10O5", "Xx2O", "fe2o3"):
         assert calc.scan_element_options(formula) == []
+
+
+def test_absent_element_warns_but_calculates():
+    """Element not in the sample: calculated as in v3, with a non-blocking warning
+    (researcher 2026-11-18)."""
+    def run(formula, element, diluent=""):
+        inp = calc.CalculatorInputs(scan=calc.ScanInputs(element=element))
+        inp.sample.formula, inp.sample.diluent = formula, diluent
+        if diluent:
+            inp.sample.sample_ratio, inp.sample.diluent_ratio = "1", "9"
+        return calc.run_calculation(inp)
+    r = run("Pt0.01Al2O3", "Fe")
+    assert r.ok and r.shown["mass"] == "21.02"
+    assert r.warnings[0] == ("Fe is not in the sample: the mass and edge step are calculated at "
+                             "the Fe K edge energy (7112 eV), where the sample has no Fe edge")
+    assert "not in the sample or diluent" in run("Fe2O3", "Cu", "SiO2").warnings[0]
+    assert run("Fe2O3", "Si", "SiO2").warnings == []        # in the diluent: no warning
+    assert run("Pt0.01Al2O3", "Pt").warnings == []
+    other = calc.CalculatorInputs(scan=calc.ScanInputs(edge="Other", other_energy_eV="7200"))
+    other.sample.formula = "Fe2O3"
+    assert calc.run_calculation(other).warnings == []

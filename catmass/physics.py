@@ -1384,6 +1384,11 @@ def element_error(text, what):
     return None
 
 
+def contains_element(Sample, Element):
+    """True if the element symbol is in the (parsable) formula."""
+    return xraylib.SymbolToAtomicNumber(Element) in xraylib.CompoundParser(Sample)['Elements']
+
+
 def scannable_elements(Sample):
     """Elements of a formula with a K or L edge at or above MIN_EDGE_ENERGY_EV, in the order
     they first appear in the formula; [] if it does not parse. Lists choices only: the

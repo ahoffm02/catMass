@@ -379,10 +379,11 @@ async def test_element_choices_follow_the_formula():
         assert combo.value == "Fe"
         user.find(marker="calculate").click()
         await settle()
-        # as in v3, an element absent from the sample is calculated, not refused (2026-11-18)
+        # an element absent from the sample is calculated, with a warning (2026-11-18)
         expected = calc.run_calculation(calc.CalculatorInputs(
             sample=calc.SampleInputs(formula="Pt0.01Al2O3"), scan=calc.ScanInputs(element="Fe")))
         assert expected.ok and text(user, "mass") == f"{expected.shown['mass']} mg"
+        assert text(user, "window_warning") == expected.warnings[0]   # non-blocking warning
 
 
 async def test_typed_diluent_kept_without_enter():

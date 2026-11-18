@@ -422,7 +422,8 @@ class CatMassPage:
                     ui.label(r.diagnostic).classes('text-body2').mark('diagnostic')
                 if r.plot_error:
                     ui.label(r.plot_error).classes('text-negative').mark('plot_error')
-                for warning in r.warnings:  # finding 13: another edge inside the step window
+                # element not in the sample; finding 13: another edge inside the step window
+                for warning in r.warnings:
                     with ui.row().classes('items-center no-wrap'):
                         ui.icon('warning', color='warning')
                         ui.label(warning).classes('text-warning').mark('window_warning')
