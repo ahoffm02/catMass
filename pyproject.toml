@@ -16,6 +16,19 @@ authors = [
 # Release 1 runs on the versions the v3 reference was verified against (vault plan, "Version
 # policy"). numpy 1.26.4 has no Python 3.13 wheel, so Release 1 supports Python 3.9-3.12.
 requires-python = ">=3.9,<3.13"
+keywords = ["XAS", "X-ray absorption spectroscopy", "synchrotron", "sample preparation"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
 dependencies = [
     "xraylib==4.1.5",   # data identical to v3's 4.1.1 (231,658 values); 4.1.1 has no Win/macOS wheel
     "xraydb==4.5.4",
@@ -32,7 +45,10 @@ test = ["pytest==8.3.4", "pytest-asyncio==0.24.0"]
 catmass = "catmass.app:main"
 
 [project.urls]
+Homepage = "https://github.com/ahoffm02/catMass"
 Source = "https://github.com/ahoffm02/catMass"
+Issues = "https://github.com/ahoffm02/catMass/issues"
+Paper = "https://doi.org/10.1107/S160057752300615X"
 
 [tool.setuptools.packages.find]
 include = ["catmass*"]  # catmass and its data folders (assets, data/glitch)
