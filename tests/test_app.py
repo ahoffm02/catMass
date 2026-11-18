@@ -65,18 +65,31 @@ def choose(user, marker, option):
     widget.click()
 
 
+def type_into_combo(user, marker, text):
+    """Type into a Combo and click away, without Enter. Typing into a select's input box is a
+    browser-side action, so the simulated user delivers the two browser events the Combo
+    handles: the typed text ('input-value') and the loss of focus ('blur')."""
+    (combo,) = user.find(marker=marker).elements
+    with user.client:
+        combo._typed = text
+        combo._take_typed()
+
+
 def choose_diluent(user, formula):
-    """Pick a listed diluent from the dropdown, or enter a new formula. For a typed formula the
-    select adds it as a new option and selects it (new-value-mode 'add-unique'); the simulated
-    user does the same, since typing into a select's input box is a browser-side action."""
+    """Pick a listed diluent from the dropdown, or type a new formula."""
     if formula in calc.DILUENTS:
         choose(user, "diluent", calc.DILUENTS[formula])
-        return
-    (select,) = user.find(marker="diluent").elements
-    with user.client:
-        select.options[formula] = formula
-        select.update()
-        select.value = formula
+    else:
+        type_into_combo(user, "diluent", formula)
+
+
+def choose_element(user, symbol):
+    """Pick the element from the list when the sample offers it, else type it."""
+    (combo,) = user.find(marker="element").elements
+    if symbol in combo.options:
+        choose(user, "element", symbol)
+    else:
+        type_into_combo(user, "element", symbol)
 
 
 async def enter(user, inp: calc.CalculatorInputs):
@@ -89,8 +102,11 @@ async def enter(user, inp: calc.CalculatorInputs):
         await fill(user, marker, value)
     if sc.edge != "K":
         choose(user, "edge", sc.edge)
-    await fill(user, "element" if sc.edge != "Other" else "other_energy",
-               sc.element if sc.edge != "Other" else sc.other_energy_eV)
+    if sc.edge != "Other":
+        if sc.element:
+            choose_element(user, sc.element)
+    else:
+        await fill(user, "other_energy", sc.other_energy_eV)
     if h.holder != "pellet":
         choose(user, "holder", calc.HOLDERS[h.holder])
     for marker, value in (("pellet_mm", h.pellet_mm), ("capillary_mm", h.capillary_mm),
@@ -343,3 +359,64 @@ async def test_rotation_shows_projected_absorption_and_step():
         user.find(marker="calculate").click()
         await user.should_see("Values used in this calculation")
         await user.should_not_see(marker="apparent_absorption")
+
+
+async def test_element_choices_follow_the_formula():
+    """Element dropdown: the sample's scannable elements; any element can still be typed; a
+    chosen element is kept when the formula changes (researcher 2026-11-18)."""
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        (combo,) = user.find(marker="element").elements
+        assert combo.options == []
+        await fill(user, "formula", "Rh0.02Ce0.98O2")
+        assert combo.options == ["Rh", "Ce"]
+        choose(user, "element", "Ce")
+        await settle()
+        assert combo.value == "Ce"
+        user.find(marker="formula").clear().type("Pt0.01Al2O3")
+        assert combo.options == ["Pt", "Ce"] and combo.value == "Ce"   # kept, not cleared
+        type_into_combo(user, "element", "Fe")                         # not in the sample
+        assert combo.value == "Fe"
+        user.find(marker="calculate").click()
+        await settle()
+        # as in v3, an element absent from the sample is calculated, not refused (2026-11-18)
+        expected = calc.run_calculation(calc.CalculatorInputs(
+            sample=calc.SampleInputs(formula="Pt0.01Al2O3"), scan=calc.ScanInputs(element="Fe")))
+        assert expected.ok and text(user, "mass") == f"{expected.shown['mass']} mg"
+
+
+async def test_typed_diluent_kept_without_enter():
+    """Found 2026-11-18 in a real browser: a diluent typed without Enter was dropped and the
+    mass computed undiluted. The Combo takes the typed text when the field loses focus."""
+    inp = inputs_from_golden(golden("F-Fe2O3-BN-10to90"))
+    expected = calc.run_calculation(inp)
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        await fill(user, "formula", inp.sample.formula)
+        type_into_combo(user, "diluent", "BN")   # typed, then clicked away
+        for marker in ("sample_ratio", "diluent_ratio"):
+            await fill(user, marker, getattr(inp.sample, marker))
+        choose_element(user, inp.scan.element)
+        user.find(marker="calculate").click()
+        await settle()
+        assert text(user, "mass") == f"{expected.shown['mass']} mg"
+        type_into_combo(user, "diluent", "Cellulose (C6H10O5)")   # a label means its option
+        (combo,) = user.find(marker="diluent").elements
+        assert combo.value == "C6H10O5"
+    assert calc.DILUENTS == {'': 'None (no dilution)', 'C6H10O5': 'Cellulose (C6H10O5)',
+                             'BN': 'Boron nitride (BN)', 'SiO2': 'Silica (SiO2)'}  # not shared
+
+
+async def test_combo_shows_a_value_set_from_code():
+    """A value not in the list, set from code (e.g. opening a file with diluent C), is added
+    to the list so the field shows it instead of a blank."""
+    async with user_simulation(catmass_app.root) as user:
+        await user.open("/")
+        for marker, value in (("diluent", "C"), ("element", "Fe")):
+            (combo,) = user.find(marker=marker).elements
+            with user.client:
+                combo.value = value
+            assert combo.props["model-value"] == {"value": combo.options.index(value)
+                                                  if isinstance(combo.options, list)
+                                                  else list(combo.options).index(value),
+                                                  "label": value}

@@ -83,6 +83,43 @@ def latest_release():
         raise
 
 
+class Combo(ui.select):
+    """Dropdown that also takes any typed value (diluent, element to be scanned).
+
+    A plain NiceGUI/Quasar select takes typed text only on Enter: clicking away dropped it
+    silently (a typed diluent was ignored, found 2026-11-18). Here typed text is also taken
+    when the field loses focus, and a value set from code that is not in the list (e.g. from
+    an opened file) is added to it, so the field shows it instead of a blank.
+    """
+
+    def __init__(self, options, **kwargs):
+        super().__init__(options, with_input=True, new_value_mode='add-unique', **kwargs)
+        self.props('stack-label')  # as the text fields: the grey example stays visible
+        self._typed = None
+        self.on('input-value', lambda e: setattr(self, '_typed', e.args))
+        self.on('blur', self._take_typed)
+
+    def _take_typed(self):
+        text, self._typed = (self._typed or '').strip(), None
+        if text:  # an option's label means that option
+            self.value = dict(zip(self._labels, self._values)).get(text, text)
+
+    def _handle_value_change(self, value):
+        super()._handle_value_change(value)
+        self._typed = None  # picked from the list, or taken on Enter
+
+    def _value_to_model_value(self, value):
+        if isinstance(value, str) and value and value not in self._values:
+            if isinstance(self.options, list):
+                self.options.append(value)
+            else:
+                self.options[value] = value
+            self._update_values_and_labels()
+            self._props['options'] = [{'value': i, 'label': label}
+                                      for i, label in enumerate(self._labels)]
+        return super()._value_to_model_value(value)
+
+
 class CatMassPage:
     """One browser tab's state and widgets."""
 
@@ -168,14 +205,15 @@ class CatMassPage:
             ui.label('Sample and dilution').classes('text-h6')
             with ui.row().classes('w-full items-center'):
                 self.text_input(c.sample, 'formula', 'Sample formula',
-                                'e.g. Pt0.01Al2O3, or use the Sample Builder', 'formula')
+                                'e.g. Pt0.01Al2O3, or use the Sample Builder', 'formula'
+                                ).on_value_change(self.refresh_elements)
                 ui.button('Sample Builder', icon='science',
                           on_click=lambda: self.tabs.set_value(self.t_builder)).props('outline')
             with ui.row().classes('w-full'):
                 # Common diluents, or type any formula (researcher 2026-11-14). Cellulose is
                 # (C6H10O5)n, not C: O absorbs more per gram than C.
-                ui.select(calc.DILUENTS, label='Diluent', with_input=True,
-                          new_value_mode='add-unique', on_change=self.inputs_changed).bind_value(
+                Combo(dict(calc.DILUENTS), label='Diluent',  # a copy: typed values are added
+                      on_change=self.inputs_changed).bind_value(
                     c.sample, 'diluent', forward=lambda v: v or '',
                     backward=lambda v: v).classes('min-w-[12rem] grow').mark('diluent')
                 self.text_input(c.sample, 'sample_ratio', 'Sample mass ratio', 'e.g. 1',
@@ -187,9 +225,13 @@ class CatMassPage:
             with ui.row().classes('w-full items-center'):
                 ui.select(calc.EDGES, label='Edge', on_change=self.inputs_changed).bind_value(
                     c.scan, 'edge').classes('min-w-[8rem]').mark('edge')
-                self.text_input(c.scan, 'element', 'Element to be scanned', 'e.g. Pt',
-                                'element').bind_visibility_from(c.scan, 'edge',
-                                                                backward=lambda e: e != 'Other')
+                # The sample's scannable elements, or type any (researcher 2026-11-18)
+                self.element_select = Combo(
+                    calc.scan_element_options(c.sample.formula), label='Element to be scanned',
+                    on_change=self.inputs_changed).props('placeholder="e.g. Pt"').bind_value(
+                    c.scan, 'element', forward=lambda v: v or '', backward=lambda v: v or None
+                ).classes('min-w-[12rem] grow').mark('element').bind_visibility_from(
+                    c.scan, 'edge', backward=lambda e: e != 'Other')
                 self.text_input(c.scan, 'other_energy_eV', 'Energy for mass and edge step [eV]',
                                 'required for "Other"', 'other_energy').bind_visibility_from(
                     c.scan, 'edge', value='Other')
@@ -475,6 +517,18 @@ class CatMassPage:
         self.render_plots()
 
     # --- actions ---------------------------------------------------------------------------
+    def refresh_elements(self, e=None):
+        """New element choices for a new formula; the chosen element is kept even if it is no
+        longer in the sample (researcher 2026-11-18)."""
+        if not hasattr(self, 'element_select'):  # still building the page
+            return
+        formula = e.value if e is not None else self.s.calculator.sample.formula
+        options = calc.scan_element_options(formula or '')
+        current = self.s.calculator.scan.element
+        if current and current not in options:
+            options.append(current)
+        self.element_select.set_options(options, value=current or None)
+
     def inputs_changed(self, *_):
         if self.result is not None and not self.stale:
             self.stale = True

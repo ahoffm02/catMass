@@ -294,3 +294,16 @@ def test_window_warning_independent_of_physics_code():
             if (sym, name) != (element, edge) and E > 200 and abs(E - E0) <= 50:
                 expected.append((sym, name, E))
     assert physics.edges_in_step_window(formula, E0, 50, element, edge) == expected
+
+
+def test_scan_element_options():
+    """Sample elements with a K or L edge >= 2000 eV, in formula order (researcher 2026-11-18)."""
+    assert calc.scan_element_options("Pt0.01Al2O3") == ["Pt"]   # Al K 1560 eV, O K: below
+    assert calc.scan_element_options("PbS") == ["Pb", "S"]
+    assert calc.scan_element_options("MnO2CeO2") == ["Mn", "Ce"]
+    assert calc.scan_element_options(" (NH4)2PtCl6 ") == ["Pt", "Cl"]
+    assert calc.scan_element_options("Co3O4") == ["Co"]          # Co, not C and O
+    assert calc.scan_element_options("P2O5") == ["P"]            # P K 2145 eV, just above
+    assert calc.scan_element_options("SiO2") == []               # Si K 1839 eV
+    for formula in ("", "C6H10O5", "Xx2O", "fe2o3"):
+        assert calc.scan_element_options(formula) == []

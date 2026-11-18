@@ -336,6 +336,12 @@ def builder_failed(result: str) -> bool:
     return 'ERROR' in result or result.startswith('COMPLEX LODAING')
 
 
+def scan_element_options(formula: str) -> list:
+    """Choices for "Element to be scanned": the sample's elements with a K or L edge at or above
+    2000 eV, in formula order (researcher 2026-11-18). Any element can still be typed."""
+    return physics.scannable_elements(formula.strip()) if formula.strip() else []
+
+
 # --- Beam path and ion chambers ---------------------------------------------------------------
 def material_options():
     """Dropdown lists, as in v3 (xraydb categories, including v3's custom materials)."""

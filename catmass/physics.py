@@ -24,6 +24,7 @@ displays after toggling angle mode, silent fallbacks to a previous value, plot s
 """
 import math
 import os
+import re
 
 import numpy as np
 import xraydb
@@ -1381,6 +1382,33 @@ def element_error(text, what):
         return (f"ERROR - {what} '{text}' is not an element symbol. "
                 "Symbols are case-sensitive, e.g. Fe")
     return None
+
+
+def scannable_elements(Sample):
+    """Elements of a formula with a K or L edge at or above MIN_EDGE_ENERGY_EV, in the order
+    they first appear in the formula; [] if it does not parse. Lists choices only: the
+    calculation still validates whatever element is entered."""
+    try:
+        present = set(xraylib.CompoundParser(Sample)['Elements'])
+    except ValueError:
+        return []
+    found = []
+    for symbol in re.findall(r'[A-Z][a-z]?', Sample):
+        try:
+            Z = xraylib.SymbolToAtomicNumber(symbol)
+        except ValueError:
+            continue
+        if Z not in present or symbol in found:
+            continue
+        energies = []
+        for shell in EDGE_SHELLS.values():
+            try:
+                energies.append(xraylib.EdgeEnergy(Z, shell) * 1000)
+            except ValueError:  # no such shell for this element
+                pass
+        if any(E >= MIN_EDGE_ENERGY_EV for E in energies):
+            found.append(symbol)
+    return found
 
 
 def number_error(text, what, minimum=0.0, allow_minimum=False, below=None):
