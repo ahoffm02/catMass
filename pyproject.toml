@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "catmass"
+version = "2026.11.1"  # year.month.release
+description = "XAS transmission sample calculator: sample mass, edge step, competing edges, beam path"
+readme = "README.md"
+license = "GPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Adam S. Hoffman", email = "ashoff@slac.stanford.edu" },
+    { name = "Jorge E. Perez-Aguilar", email = "jperezag@slac.stanford.edu" },
+]
+# Release 1 runs on the versions the v3 reference was verified against (vault plan, "Version
+# policy"). numpy 1.26.4 has no Python 3.13 wheel, so Release 1 supports Python 3.9-3.12.
+requires-python = ">=3.9,<3.13"
+keywords = ["XAS", "X-ray absorption spectroscopy", "synchrotron", "sample preparation"]
+classifiers = [
+    "Development Status :: 4 - Beta",  # researcher 2026-11-18: until more feedback
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Chemistry",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+dependencies = [
+    "xraylib==4.1.5",   # data identical to v3's 4.1.1 (231,658 values); 4.1.1 has no Win/macOS wheel
+    "xraydb==4.5.4",
+    "numpy==1.26.4",
+    "nicegui==3.6.1",   # last NiceGUI release for Python 3.9
+    "plotly==7.1.0",
+    "greenlet<3.2.5",   # via xraydb -> SQLAlchemy; 3.2.5 has no Windows wheel for Python 3.9
+]
+
+[project.optional-dependencies]
+test = ["pytest==8.3.4", "pytest-asyncio==0.24.0"]
+
+[project.scripts]
+catmass = "catmass.app:main"
+
+[project.urls]
+Homepage = "https://github.com/ahoffm02/catMass"
+Source = "https://github.com/ahoffm02/catMass"
+Issues = "https://github.com/ahoffm02/catMass/issues"
+Paper = "https://doi.org/10.1107/S160057752300615X"
+
+[tool.setuptools.packages.find]
+include = ["catmass*"]  # catmass and its data folders (assets, data/glitch)
+
+[tool.setuptools.package-data]
+"catmass.assets" = ["*"]
+"catmass.data.glitch" = ["*.txt", "README.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # Finding 12 (deferred to the version-update release): v3's builder code converts a
+    # 1-element array with float(); numpy >= 1.25 warns. Harmless on numpy 1.26.4.
+    "ignore:Conversion of an array with ndim > 0 to a scalar:DeprecationWarning",
+]

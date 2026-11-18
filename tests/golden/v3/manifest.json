@@ -1,0 +1,447 @@
+{
+ "schema": "catmass-golden/1",
+ "generator_version": "2",
+ "generated_utc": "2026-11-09T02:09:50+00:00",
+ "reference_sha256": "a33973bbf9e03a22b67be977a60e1cb554ef8afeca91df3d36752f14de07010c",
+ "environment": {
+  "python": "3.9.23",
+  "xraylib": "4.1.1",
+  "xraydb": "4.5.4",
+  "matplotlib": "3.5.2"
+ },
+ "cases": [
+  {
+   "id": "core-FeK-Al2O3-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-Al2O3-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-Al2O3-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-SiO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-SiO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-SiO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-CeO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-CeO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-FeK-CeO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-Al2O3-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-Al2O3-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-Al2O3-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-SiO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-SiO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-SiO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-CeO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-CeO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-PtL3-CeO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-Al2O3-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-Al2O3-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-Al2O3-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-SiO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-SiO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-SiO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-CeO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-CeO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-MoK-CeO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-Al2O3-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-Al2O3-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-Al2O3-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-SiO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-SiO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-SiO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-CeO2-0.1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-CeO2-1wt",
+   "group": "core"
+  },
+  {
+   "id": "core-RhK-CeO2-3wt",
+   "group": "core"
+  },
+  {
+   "id": "A-Pt-foil-L3",
+   "group": "A"
+  },
+  {
+   "id": "A-Pt-foil-L2",
+   "group": "A"
+  },
+  {
+   "id": "A-Pt-foil-L1",
+   "group": "A"
+  },
+  {
+   "id": "A-Pt-foil-L3-plot",
+   "group": "A"
+  },
+  {
+   "id": "A-Fe-foil-K",
+   "group": "A"
+  },
+  {
+   "id": "A-other-at-edge",
+   "group": "A"
+  },
+  {
+   "id": "A-other-at-edge-AL-retyped",
+   "group": "A"
+  },
+  {
+   "id": "B-PtSn-SiO2-PtL3",
+   "group": "B"
+  },
+  {
+   "id": "B-PtSn-SiO2-SnK",
+   "group": "B"
+  },
+  {
+   "id": "B-PtO2-Al2O3-PtL3",
+   "group": "B"
+  },
+  {
+   "id": "B-complex-loading",
+   "group": "B"
+  },
+  {
+   "id": "B-complex-metal-loading",
+   "group": "B"
+  },
+  {
+   "id": "C-PtAu-SiO2-PtL3",
+   "group": "C"
+  },
+  {
+   "id": "C-MnFe2O4-BN-MnK",
+   "group": "C"
+  },
+  {
+   "id": "D-Pt-TiO2-TiK",
+   "group": "D"
+  },
+  {
+   "id": "E-cap-1mm-bed-1cm",
+   "group": "E"
+  },
+  {
+   "id": "E-cap-2mm-bed-1cm",
+   "group": "E"
+  },
+  {
+   "id": "E-cap-3mm-bed-1cm",
+   "group": "E"
+  },
+  {
+   "id": "E-cap-3mm-bed-2.5cm",
+   "group": "E"
+  },
+  {
+   "id": "E-cap-1mm-bed-0.5cm",
+   "group": "E"
+  },
+  {
+   "id": "E-pellet-5mm",
+   "group": "E"
+  },
+  {
+   "id": "E-pellet-7mm",
+   "group": "E"
+  },
+  {
+   "id": "E-pellet-10mm",
+   "group": "E"
+  },
+  {
+   "id": "E-pellet-13mm",
+   "group": "E"
+  },
+  {
+   "id": "E-other-area-0.5",
+   "group": "E"
+  },
+  {
+   "id": "E-other-area-0.125",
+   "group": "E"
+  },
+  {
+   "id": "E-AL-1.5",
+   "group": "E"
+  },
+  {
+   "id": "E-AL-2.555",
+   "group": "E"
+  },
+  {
+   "id": "E-angle45-before-calc",
+   "group": "E"
+  },
+  {
+   "id": "E-angle45-after-calc",
+   "group": "E"
+  },
+  {
+   "id": "E-angle45-after-calc-recalc",
+   "group": "E"
+  },
+  {
+   "id": "E-angle30",
+   "group": "E"
+  },
+  {
+   "id": "E-angle45-plot",
+   "group": "E"
+  },
+  {
+   "id": "F-Fe2O3-BN-10to90",
+   "group": "F"
+  },
+  {
+   "id": "F-Fe2O3-BN-50to50",
+   "group": "F"
+  },
+  {
+   "id": "F-Fe2O3-C-10to90",
+   "group": "F"
+  },
+  {
+   "id": "F-Fe2O3-C-50to50",
+   "group": "F"
+  },
+  {
+   "id": "F-Fe2O3-SiO2-10to90",
+   "group": "F"
+  },
+  {
+   "id": "F-Fe2O3-SiO2-50to50",
+   "group": "F"
+  },
+  {
+   "id": "G-materials-defaults",
+   "group": "G"
+  },
+  {
+   "id": "G-materials-units",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-10cm-He-N2-50",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-15cm-N2-100",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-30cm-Ar20-N2",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-45cm-Ar-He-50",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-60cm-N2-30-He-1500torr",
+   "group": "G"
+  },
+  {
+   "id": "G-IC-other-20cm",
+   "group": "G"
+  },
+  {
+   "id": "H-empty",
+   "group": "H"
+  },
+  {
+   "id": "H-no-element",
+   "group": "H"
+  },
+  {
+   "id": "H-AL-cleared",
+   "group": "H"
+  },
+  {
+   "id": "H-area-cleared",
+   "group": "H"
+  },
+  {
+   "id": "H-element-not-in-sample",
+   "group": "H"
+  },
+  {
+   "id": "H-off-edge",
+   "group": "H"
+  },
+  {
+   "id": "H-other-at-edge-plot",
+   "group": "H"
+  },
+  {
+   "id": "H-other-decimal-plot",
+   "group": "H"
+  },
+  {
+   "id": "H-bad-symbol",
+   "group": "H"
+  },
+  {
+   "id": "H-bad-formula",
+   "group": "H"
+  },
+  {
+   "id": "H-FeCeO2-retry-noplot",
+   "group": "H"
+  },
+  {
+   "id": "H-FeCeO2-retry-angle",
+   "group": "H"
+  },
+  {
+   "id": "H-dilution-no-ratio",
+   "group": "H"
+  },
+  {
+   "id": "H-dilution-diluent-ratio-only",
+   "group": "H"
+  },
+  {
+   "id": "H-builder-no-support",
+   "group": "H"
+  },
+  {
+   "id": "H-builder-no-site1",
+   "group": "H"
+  },
+  {
+   "id": "H-builder-no-loading1",
+   "group": "H"
+  },
+  {
+   "id": "H-builder-site2-no-loading",
+   "group": "H"
+  },
+  {
+   "id": "H-complex-center-not-in-complex",
+   "group": "H"
+  },
+  {
+   "id": "H-complex-both-loadings",
+   "group": "H"
+  },
+  {
+   "id": "H-complex-no-support",
+   "group": "H"
+  },
+  {
+   "id": "H-complex-no-complex",
+   "group": "H"
+  },
+  {
+   "id": "H-IC-before-calc",
+   "group": "H"
+  },
+  {
+   "id": "I-PtL3-limits-100-1500",
+   "group": "I"
+  },
+  {
+   "id": "I-Pt-ZrO2-ZrK",
+   "group": "I"
+  }
+ ],
+ "failures": []
+}
